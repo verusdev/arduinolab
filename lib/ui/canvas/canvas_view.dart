@@ -299,15 +299,28 @@ class _HintCard extends StatelessWidget {
   }
 }
 
-class _ComponentNode extends StatelessWidget {
+class _ComponentNode extends StatefulWidget {
   const _ComponentNode({super.key, required this.id});
 
   final String id;
 
   @override
+  State<_ComponentNode> createState() => _ComponentNodeState();
+}
+
+class _ComponentNodeState extends State<_ComponentNode> {
+  /// True while the finger is on a joystick's stick, so the rest of that drag
+  /// keeps working the stick instead of dragging the module out from under it.
+  bool _grippingStick = false;
+
+  /// Where the finger was at the previous pointer event, in the component's own
+  /// space, for measuring how far it has slid.
+  Offset _touch = Offset.zero;
+
+  @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
-    final component = app.project.circuit.componentById(id);
+    final component = app.project.circuit.componentById(widget.id);
     if (component == null) return const SizedBox.shrink();
     final visual = ComponentVisual.of(app, component);
     final selected = app.selectedComponentId == component.id;
@@ -342,62 +355,120 @@ class _ComponentNode extends StatelessWidget {
       child: Transform.rotate(
         angle: component.rotation * math.pi / 180.0,
         alignment: alignment,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () {
-            app.selectComponent(component.id);
-            if (component.type == ComponentType.pushButton) {
-              app.setButtonPressed(
-                  component.id, !app.isButtonPressed(component.id));
-            }
-          },
-          onDoubleTap:
-              rotatable ? () => app.rotateComponent(component.id) : null,
-          onLongPress: () => app.deleteComponent(component.id),
-          // Dragging an arm part pulls it off the chain first, so it (and
-          // everything bolted above it) follows the finger; letting go bolts it
-          // onto whatever socket it landed nearest.
-          onPanStart: driving || mount == null
-              ? null
-              : (_) => app.detachArmPart(component.id),
-          onPanEnd: driving || mount == null
-              ? null
-              : (_) => app.dropArmPart(component.id),
-          onPanUpdate: driving
-              ? null
-              : (details) => app.moveComponent(component.id,
-                  component.x + details.delta.dx,
-                  component.y + details.delta.dy),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: ComponentPainter(
-                    component: component,
-                    visual: visual,
-                    selected: selected,
-                    pendingPinId: pendingPin,
-                    wiring: wiring,
+        // The stick follows the raw pointer rather than a pan gesture: it only
+        // travels 10 px off centre, so waiting for the touch slop to be crossed
+        // would swallow the whole travel before the drag even started.
+        child: Listener(
+          onPointerDown: (event) => _holdStick(component, event.localPosition),
+          onPointerMove: (event) =>
+              _slideStick(app, component, event.localPosition),
+          onPointerUp: (_) => _grippingStick = false,
+          onPointerCancel: (_) => _grippingStick = false,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTapUp: (details) => _tap(app, component, details.localPosition),
+            onDoubleTap:
+                rotatable ? () => app.rotateComponent(component.id) : null,
+            onLongPress: () => app.deleteComponent(component.id),
+            onPanStart:
+                driving ? null : (details) => _startDrag(app, component),
+            onPanUpdate: driving
+                ? null
+                : (details) => _drag(app, component, details),
+            onPanEnd: driving ? null : (_) => _endDrag(app, component),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: ComponentPainter(
+                      component: component,
+                      visual: visual,
+                      selected: selected,
+                      pendingPinId: pendingPin,
+                      wiring: wiring,
+                    ),
                   ),
                 ),
-              ),
-              for (final pin in component.spec.pins)
-                Positioned(
-                  left: pin.dx - hit / 2,
-                  top: pin.dy - hit / 2,
-                  width: hit,
-                  height: hit,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => app.tapPin(component.id, pin.id),
-                    child: const SizedBox.expand(),
+                for (final pin in component.spec.pins)
+                  Positioned(
+                    left: pin.dx - hit / 2,
+                    top: pin.dy - hit / 2,
+                    width: hit,
+                    height: hit,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => app.tapPin(component.id, pin.id),
+                      child: const SizedBox.expand(),
+                    ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
+  }
+
+  /// A tap selects the part, and on the parts the user works by hand it also
+  /// does the obvious thing: a button toggles, a joystick's `SW` pad presses,
+  /// and its stick springs back to the middle.
+  void _tap(AppState app, PlacedComponent component, Offset at) {
+    app.selectComponent(component.id);
+    switch (component.type) {
+      case ComponentType.pushButton:
+        app.setButtonPressed(component.id, !app.isButtonPressed(component.id));
+      case ComponentType.joystick:
+        if (JoystickGeometry.overButton(at.dx, at.dy)) {
+          app.setButtonPressed(
+              component.id, !app.isButtonPressed(component.id));
+        } else if (JoystickGeometry.overStick(at.dx, at.dy)) {
+          app.setJoystick(component.id, 0.5, 0.5);
+        }
+      default:
+        break;
+    }
+  }
+
+  /// Grabs a joystick's stick if the drag started on it, otherwise pulls an arm
+  /// part off its chain so the part (and everything bolted above it) follows the
+  /// finger; letting go bolts it onto whatever socket it landed nearest.
+  void _startDrag(AppState app, PlacedComponent component) {
+    if (_grippingStick) return;
+    if (component.spec.mount != null) app.detachArmPart(component.id);
+  }
+
+  void _drag(
+      AppState app, PlacedComponent component, DragUpdateDetails details) {
+    if (_grippingStick) return;
+    app.moveComponent(component.id, component.x + details.delta.dx,
+        component.y + details.delta.dy);
+  }
+
+  void _endDrag(AppState app, PlacedComponent component) {
+    if (component.spec.mount != null) app.dropArmPart(component.id);
+  }
+
+  /// Remembers where a finger came down on a component, and whether it landed on
+  /// a joystick's stick: from then on that finger works the stick, not the part.
+  void _holdStick(PlacedComponent component, Offset at) {
+    _touch = at;
+    _grippingStick = component.type == ComponentType.joystick &&
+        JoystickGeometry.overStick(at.dx, at.dy);
+  }
+
+  /// Slides the stick by however far the finger moved since the last event, so
+  /// grabbing it by the edge never makes it jump.
+  void _slideStick(AppState app, PlacedComponent component, Offset at) {
+    final step = at - _touch;
+    _touch = at;
+    if (!_grippingStick || step == Offset.zero) return;
+    final (x, y) = JoystickGeometry.slide(
+      (component.properties['x'] as num?)?.toDouble() ?? 0.5,
+      (component.properties['y'] as num?)?.toDouble() ?? 0.5,
+      step.dx,
+      step.dy,
+    );
+    app.setJoystick(component.id, x, y);
   }
 }

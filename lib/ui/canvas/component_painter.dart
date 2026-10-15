@@ -58,6 +58,9 @@ class ComponentPainter extends CustomPainter {
       case ComponentType.potentiometer:
         _potentiometer(canvas, size);
         break;
+      case ComponentType.joystick:
+        _joystick(canvas, size);
+        break;
       case ComponentType.servo:
         _servo(canvas, size);
         break;
@@ -410,6 +413,81 @@ class ComponentPainter extends CustomPainter {
     canvas.restore();
     canvas.drawCircle(center, 12, Paint()..color = const Color(0xFF90A4AE));
     canvas.drawCircle(center, 3, Paint()..color = const Color(0xFF37474F));
+  }
+
+  /// The joystick module: a PCB carrying the stick's boot, the stick itself and
+  /// the `SW` button beside it.
+  ///
+  /// The stick is drawn exactly where the X/Y properties put it, so it follows
+  /// the user's finger and shows, at a glance, what the sketch is reading.
+  void _joystick(Canvas canvas, Size size) {
+    _rounded(canvas, Rect.fromLTWH(2, 2, size.width - 4, size.height - 10),
+        const Color(0xFF1B3A5C),
+        radius: 5,
+        stroke: const Color(0xFF0E2338), strokeWidth: 1.5);
+
+    final centre = Offset(JoystickGeometry.bootX, JoystickGeometry.bootY);
+    canvas.drawCircle(centre, JoystickGeometry.bootRadius,
+        Paint()..color = const Color(0xFF0E2338));
+    canvas.drawCircle(
+        centre,
+        JoystickGeometry.bootRadius,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.2
+          ..color = const Color(0xFF4A6B8A));
+
+    // The ends of the travel, so the stick has somewhere to aim for.
+    final hair = Paint()
+      ..strokeWidth = 0.8
+      ..color = const Color(0x554A6B8A);
+    canvas.drawLine(
+        Offset(centre.dx - JoystickGeometry.travel, centre.dy),
+        Offset(centre.dx + JoystickGeometry.travel, centre.dy),
+        hair);
+    canvas.drawLine(
+        Offset(centre.dx, centre.dy - JoystickGeometry.travel),
+        Offset(centre.dx, centre.dy + JoystickGeometry.travel),
+        hair);
+
+    final (sx, sy) = JoystickGeometry.stickAt(
+      (component.properties['x'] as num?)?.toDouble() ?? 0.5,
+      (component.properties['y'] as num?)?.toDouble() ?? 0.5,
+    );
+    final stick = Offset(sx, sy);
+    canvas.drawCircle(
+        stick, JoystickGeometry.knobRadius + 2, Paint()..color = const Color(0x66000000));
+    canvas.drawCircle(stick, JoystickGeometry.knobRadius,
+        Paint()..color = const Color(0xFFCFD8DC));
+    canvas.drawCircle(
+        stick,
+        JoystickGeometry.knobRadius,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1
+          ..color = const Color(0xFF546E7A));
+    canvas.drawCircle(stick, 2.4, Paint()..color = const Color(0xFF37474F));
+
+    // The button, lit while it is held down.
+    final held = visual.pressed;
+    _rounded(
+        canvas,
+        Rect.fromLTWH(JoystickGeometry.buttonLeft, JoystickGeometry.buttonTop,
+            JoystickGeometry.buttonWidth, JoystickGeometry.buttonHeight),
+        held ? const Color(0xFFEF6C00) : const Color(0xFF7FA8C9),
+        radius: 2.5,
+        stroke: const Color(0xFF0E2338));
+    _label(canvas, 'SW',
+        Offset(
+            JoystickGeometry.buttonLeft + JoystickGeometry.buttonWidth / 2,
+            JoystickGeometry.buttonTop + 3),
+        size: 6,
+        color: held ? Colors.white : const Color(0xFF0E2338),
+        weight: FontWeight.bold,
+        align: TextAlign.center);
+    _label(canvas, S.t('silk.joystick'),
+        const Offset(JoystickGeometry.buttonLeft + JoystickGeometry.buttonWidth + 3, 3),
+        size: 5.5, color: const Color(0xFF9FC2DE));
   }
 
   void _servo(Canvas canvas, Size size) {

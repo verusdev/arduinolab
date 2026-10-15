@@ -25,6 +25,8 @@ class Palette extends StatelessWidget {
         return Icons.radio_button_checked;
       case ComponentType.potentiometer:
         return Icons.tune;
+      case ComponentType.joystick:
+        return Icons.gamepad;
       case ComponentType.servo:
         return Icons.rotate_right;
       case ComponentType.buzzer:

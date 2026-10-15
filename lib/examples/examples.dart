@@ -187,6 +187,74 @@ class Examples {
       ),
     ),
     LabExample(
+      id: 'joystick_servo',
+      title: 'Joystick steers a servo',
+      summary: 'Read both axes of a joystick and aim a servo with them.',
+      steps: [
+        'The joystick is two potentiometers and a button on one module: VCC and '
+            'GND to the board, VRX to A0, and SW to D2.',
+        'analogRead(A0) returns 0 at one end of the X travel, 1023 at the '
+            'other, and about 512 with the stick untouched.',
+        'Wire VRY to a spare analog pin to read the Y axis the same way.',
+        'SW is a button to GND, so INPUT_PULLUP makes digitalRead(2) read 0 '
+            'while the stick is pushed in.',
+        'Drag the stick on the board: the servo follows the X axis and the LED '
+            'lights up when you push the stick in.',
+      ],
+      build: () => _project(
+        'Joystick',
+        [
+          _c('uno', ComponentType.arduinoUno, 40, 40),
+          _c('joy1', ComponentType.joystick, 380, 60),
+          _c('servo1', ComponentType.servo, 380, 200),
+          _c('r1', ComponentType.resistor, 620, 200,
+              props: {'resistance': 220.0}),
+          _c('led1', ComponentType.led, 620, 276),
+        ],
+        [
+          _w('joy1', 'VCC', 'uno', '5V0'),
+          _w('joy1', 'GND', 'uno', 'GND3'),
+          _w('joy1', 'VRX', 'uno', 'A0'),
+          _w('joy1', 'SW', 'uno', 'D2'),
+          _w('servo1', 'VCC', 'uno', '5V0'),
+          _w('servo1', 'GND', 'uno', 'GND3'),
+          _w('servo1', 'SIG', 'uno', 'D9'),
+          _w('uno', 'D13', 'r1', '1'),
+          _w('r1', '2', 'led1', 'A'),
+          _w('led1', 'C', 'uno', 'GND4'),
+        ],
+        [
+          _b(BlockKind.setPinMode, {'pin': 13, 'mode': 'OUTPUT'}),
+          _b(BlockKind.setPinMode, {'pin': 2, 'mode': 'INPUT_PULLUP'}),
+        ],
+        [
+          _b(BlockKind.servoWrite, {
+            'pin': 9,
+            'angle': Value.call('map', [
+              Value.call('analogRead', [Value.num(14)]),
+              Value.num(0),
+              Value.num(1023),
+              Value.num(0),
+              Value.num(180),
+            ]),
+          }),
+          _b(
+            BlockKind.ifElse,
+            {
+              'condition': Value.binary('==',
+                  Value.call('digitalRead', [Value.num(2)]), Value.num(0)),
+            },
+            [
+              _b(BlockKind.digitalWrite, {'pin': 13, 'value': 'HIGH'}),
+            ],
+            [
+              _b(BlockKind.digitalWrite, {'pin': 13, 'value': 'LOW'}),
+            ],
+          ),
+        ],
+      ),
+    ),
+    LabExample(
       id: 'servo_sweep',
       title: 'Servo sweep',
       summary: 'Sweep a servo motor from 0° to 180° and back.',

@@ -167,6 +167,20 @@ class Solver {
           final t = (c.properties['position'] as num?)?.toDouble() ?? 0.5;
           addElement(c.id, '1', '2', 1 / math.max(t * 10000, 50));
           addElement(c.id, '2', '3', 1 / math.max((1 - t) * 10000, 50));
+        case ComponentType.joystick:
+          // Two wipers on one track between VCC and GND: each axis is a plain
+          // voltage divider, so the wiper reads 0 V at one end of the travel and
+          // 5 V at the other, with the centre in between.
+          final jx = _lever(c.properties['x']);
+          final jy = _lever(c.properties['y']);
+          addElement(c.id, 'VRX', 'GND', 1 / math.max(jx * 10000, 50));
+          addElement(c.id, 'VCC', 'VRX', 1 / math.max((1 - jx) * 10000, 50));
+          addElement(c.id, 'VRY', 'GND', 1 / math.max(jy * 10000, 50));
+          addElement(c.id, 'VCC', 'VRY', 1 / math.max((1 - jy) * 10000, 50));
+          // SW is a push button to GND, closed only while it is held down.
+          if (pressedButtons.contains(c.id)) {
+            addElement(c.id, 'SW', 'GND', 1 / 20);
+          }
         case ComponentType.arduinoUno:
         case ComponentType.breadboard:
         case ComponentType.servo:
@@ -311,6 +325,7 @@ class Solver {
         case ComponentType.photoresistor:
         case ComponentType.pushButton:
         case ComponentType.potentiometer:
+        case ComponentType.joystick:
         case ComponentType.servo:
         case ComponentType.buzzer:
         case ComponentType.lcd16x2:
@@ -334,6 +349,11 @@ class Solver {
       warnings: warnings,
     );
   }
+
+  /// A control position in 0..1: the parts the user drags report where they were
+  /// told to sit, so clamp what reaches the matrix.
+  static double _lever(Object? value) =>
+      ((value as num?)?.toDouble() ?? 0.5).clamp(0.0, 1.0);
 
   /// Gaussian elimination with partial pivoting.
   static List<double> _gauss(List<List<double>> a, List<double> b) {

@@ -210,6 +210,17 @@ class AppState extends ChangeNotifier {
   bool isButtonPressed(String componentId) =>
       engine.pressedButtons.contains(componentId);
 
+  /// Swings a joystick's stick to a wiper position in 0..1 on each axis: X to the
+  /// right, Y upwards.
+  void setJoystick(String componentId, double x, double y) {
+    final c = project.circuit.componentById(componentId);
+    if (c == null) return;
+    c.properties['x'] = x.clamp(0.0, 1.0);
+    c.properties['y'] = y.clamp(0.0, 1.0);
+    engine.invalidate();
+    _kick();
+  }
+
   // ----------------------------------------------------------------- blocks
 
   List<Block> _sectionList(BlockSection section) =>

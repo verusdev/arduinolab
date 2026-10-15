@@ -9,6 +9,7 @@ enum ComponentType {
   resistor,
   pushButton,
   potentiometer,
+  joystick,
   servo,
   buzzer,
   lcd16x2,
@@ -142,6 +143,73 @@ class BreadboardGeometry {
   }
 }
 
+/// Geometry of the joystick module, shared by the painter and the canvas so
+/// the stick the user sees is the stick they grab.
+///
+/// A joystick is two potentiometers that share the VCC/GND rails plus a button:
+/// VRX is the wiper of the one that runs across the module, VRY the wiper of the
+/// one that runs up the module, and SW is a normally-open push button to GND.
+/// All three rest in the middle of their travel.
+class JoystickGeometry {
+  static const double width = 64;
+  static const double height = 64;
+
+  /// Centre and radius of the rubber boot the stick swings inside.
+  static const double bootX = width / 2;
+  static const double bootY = 27;
+  static const double bootRadius = 17;
+
+  /// How far the stick reaches from the centre, and how big its knob is.
+  static const double travel = 10;
+  static const double knobRadius = 7;
+
+  /// The `SW` button printed on the module body.
+  static const double buttonLeft = 2;
+  static const double buttonTop = 2;
+  static const double buttonWidth = 17;
+  static const double buttonHeight = 12;
+
+  /// The header along the bottom edge of the module.
+  static List<Pin> buildPins() => const [
+        Pin('VCC', 'VCC', 3, 52, PinKind.power),
+        Pin('GND', 'GND', 17, 52, PinKind.ground),
+        Pin('VRX', 'VRX', 31, 52, PinKind.analogIn),
+        Pin('VRY', 'VRY', 45, 52, PinKind.analogIn),
+        Pin('SW', 'SW', 59, 52, PinKind.digital),
+      ];
+
+  /// True when a point in the component's local space is over the `SW` button,
+  /// so a tap there presses the button instead of touching the stick.
+  static bool overButton(double dx, double dy) =>
+      dx >= buttonLeft &&
+      dx <= buttonLeft + buttonWidth &&
+      dy >= buttonTop &&
+      dy <= buttonTop + buttonHeight;
+
+  /// True when a point is on the boot, and so drags the stick rather than the
+  /// module itself.
+  static bool overStick(double dx, double dy) {
+    final ox = dx - bootX;
+    final oy = dy - bootY;
+    return ox * ox + oy * oy <= bootRadius * bootRadius;
+  }
+
+  /// Where the middle of the stick sits for a wiper position in 0..1: X grows to
+  /// the right, Y grows upwards.
+  static (double, double) stickAt(double x, double y) =>
+      (bootX + (x - 0.5) * 2 * travel, bootY - (y - 0.5) * 2 * travel);
+
+  /// Where the stick ends up when a finger drags it [dx] pixels right and [dy]
+  /// pixels down, with each axis clamped to the ends of its travel.
+  ///
+  /// The stick is dragged rather than aimed at, so grabbing its edge never
+  /// teleports it: what moves is the stick, by exactly as much as the finger.
+  static (double, double) slide(double x, double y, double dx, double dy) => (
+        (x + dx / (2 * travel)).clamp(0.0, 1.0),
+        (y - dy / (2 * travel)).clamp(0.0, 1.0),
+      );
+}
+
 /// Pin layout of the Arduino UNO board.
 List<Pin> _arduinoPins() {
   final pins = <Pin>[];
@@ -247,6 +315,15 @@ class ComponentSpecs {
         Pin('3', '3', 60, 30, PinKind.passive),
       ],
       defaults: {'position': 0.5},
+    ),
+    ComponentType.joystick: ComponentSpec(
+      type: ComponentType.joystick,
+      label: 'Joystick',
+      category: 'Input',
+      width: JoystickGeometry.width,
+      height: JoystickGeometry.height,
+      pins: JoystickGeometry.buildPins(),
+      defaults: {'x': 0.5, 'y': 0.5},
     ),
     ComponentType.servo: ComponentSpec(
       type: ComponentType.servo,

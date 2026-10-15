@@ -115,6 +115,7 @@ class S {
     'component.ultrasonic': 'Ultrasonic HC-SR04',
     'component.dht11': 'DHT11 Temp/Humidity',
     'component.photoresistor': 'Photoresistor',
+    'component.joystick': 'Joystick',
     'component.robotCar': 'Robot Car 4WD',
     'component.robotArm': 'Robot Arm',
     'component.armBase': 'Arm Base',
@@ -184,6 +185,12 @@ class S {
     'prop.resistance': 'Resistance',
     'prop.knob': 'Knob',
     'prop.lightLevel': 'Light level',
+    'prop.stick': 'Stick position',
+    'prop.axisX': 'X axis (VRX)',
+    'prop.axisY': 'Y axis (VRY)',
+    'prop.axisValue': '{percent}% · {volts} V',
+    'prop.centre': 'Back to the centre',
+    'prop.swPressed': 'SW pressed',
     'prop.distance': 'Distance',
     'prop.temperature': 'Temperature',
     'prop.humidity': 'Humidity',
@@ -307,6 +314,7 @@ class S {
     'silk.robotCar': 'ROBOT CAR 4WD',
     'silk.robotArm': 'ROBOT ARM',
     'silk.base': 'BASE',
+    'silk.joystick': 'KY-023',
     'silk.digital': 'DIGITAL',
     'silk.analogPower': 'ANALOG / POWER',
 
@@ -354,6 +362,24 @@ class S {
     'lesson.pot_led.s2': 'analogRead(A0) returns 0..1023.',
     'lesson.pot_led.s3':
         'map() scales it to 0..255 for analogWrite on D9.',
+
+    'lesson.joystick_servo.title': 'Joystick steers a servo',
+    'lesson.joystick_servo.summary':
+        'Read both axes of a joystick and aim a servo with them.',
+    'lesson.joystick_servo.s1':
+        'The joystick is two potentiometers and a button on one module: VCC and '
+        'GND to the board, VRX to A0, and SW to D2.',
+    'lesson.joystick_servo.s2':
+        'analogRead(A0) returns 0 at one end of the X travel, 1023 at the '
+        'other, and about 512 with the stick untouched.',
+    'lesson.joystick_servo.s3':
+        'Wire VRY to a spare analog pin to read the Y axis the same way.',
+    'lesson.joystick_servo.s4':
+        'SW is a button to GND, so INPUT_PULLUP makes digitalRead(2) read 0 '
+        'while the stick is pushed in.',
+    'lesson.joystick_servo.s5':
+        'Drag the stick on the board: the servo follows the X axis and the LED '
+        'lights up when you push the stick in.',
 
     'lesson.servo_sweep.title': 'Servo sweep',
     'lesson.servo_sweep.summary': 'Sweep a servo motor from 0° to 180° and back.',
@@ -524,6 +550,7 @@ class S {
     'component.ultrasonic': 'Дальномер HC-SR04',
     'component.dht11': 'DHT11 (темп./влажн.)',
     'component.photoresistor': 'Фоторезистор',
+    'component.joystick': 'Джойстик',
     'component.robotCar': 'Машинка 4WD',
     'component.robotArm': 'Механическая рука',
     'component.armBase': 'Основание руки',
@@ -595,6 +622,12 @@ class S {
     'prop.resistance': 'Сопротивление',
     'prop.knob': 'Ручка',
     'prop.lightLevel': 'Уровень света',
+    'prop.stick': 'Положение ручки',
+    'prop.axisX': 'Ось X (VRX)',
+    'prop.axisY': 'Ось Y (VRY)',
+    'prop.axisValue': '{percent}% · {volts} В',
+    'prop.centre': 'Вернуть в центр',
+    'prop.swPressed': 'Кнопка SW',
     'prop.distance': 'Расстояние',
     'prop.temperature': 'Температура',
     'prop.humidity': 'Влажность',
@@ -719,6 +752,7 @@ class S {
     'silk.robotCar': 'МАШИНКА 4WD',
     'silk.robotArm': 'РУКА',
     'silk.base': 'БАЗА',
+    'silk.joystick': 'KY-023',
     'silk.digital': 'ЦИФРОВЫЕ',
     'silk.analogPower': 'АНАЛОГ / ПИТАНИЕ',
 
@@ -773,6 +807,23 @@ class S {
     'lesson.pot_led.s3':
         'map() масштабирует это в 0..255 для analogWrite на D9.',
 
+    'lesson.joystick_servo.title': 'Джойстик управляет сервоприводом',
+    'lesson.joystick_servo.summary':
+        'Читаем обе оси джойстика и наводим по ним сервопривод.',
+    'lesson.joystick_servo.s1':
+        'Джойстик — это два потенциометра и кнопка в одном модуле: VCC и GND к '
+        'плате, VRX на A0, SW на D2.',
+    'lesson.joystick_servo.s2':
+        'analogRead(A0) даёт 0 у одного края хода по X, 1023 у другого и около '
+        '512, когда ручка не тронута.',
+    'lesson.joystick_servo.s3':
+        'Подключите VRY к свободному аналоговому пину, чтобы так же читать ось Y.',
+    'lesson.joystick_servo.s4':
+        'SW — это кнопка на GND, поэтому с INPUT_PULLUP digitalRead(2) даёт 0, '
+        'пока ручка вдавлена.',
+    'lesson.joystick_servo.s5':
+        'Потяните ручку на плате: сервопривод следует за осью X, а светодиод '
+        'загорается, когда ручку вдавливают.',
     'lesson.servo_sweep.title': 'Поворот сервопривода',
     'lesson.servo_sweep.summary':
         'Плавно поворачиваем сервопривод от 0° до 180° и обратно.',

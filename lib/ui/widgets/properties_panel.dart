@@ -385,6 +385,47 @@ class PropertiesPanel extends StatelessWidget {
           _slider(S.t('prop.lightLevel'), '${(l * 100).round()}%', l, 0, 1,
               (v) => setProp('light', v)),
         ];
+      case ComponentType.joystick:
+        final x = (component.properties['x'] as num?)?.toDouble() ?? 0.5;
+        final y = (component.properties['y'] as num?)?.toDouble() ?? 0.5;
+        return [
+          Text(S.t('prop.stick'), style: const TextStyle(fontSize: 13)),
+          _slider(
+              S.t('prop.axisX'),
+              S.t('prop.axisValue',
+                  {'percent': (x * 100).round(), 'volts': (x * 5).toStringAsFixed(1)}),
+              x,
+              0,
+              1,
+              (v) => setProp('x', v)),
+          _slider(
+              S.t('prop.axisY'),
+              S.t('prop.axisValue',
+                  {'percent': (y * 100).round(), 'volts': (y * 5).toStringAsFixed(1)}),
+              y,
+              0,
+              1,
+              (v) => setProp('y', v)),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () {
+                setProp('x', 0.5);
+                setProp('y', 0.5);
+              },
+              icon: const Icon(Icons.filter_center_focus, size: 16),
+              label: Text(S.t('prop.centre')),
+            ),
+          ),
+          SwitchListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            title: Text(S.t('prop.swPressed'),
+                style: const TextStyle(fontSize: 13)),
+            value: app.isButtonPressed(component.id),
+            onChanged: (v) => app.setButtonPressed(component.id, v),
+          ),
+        ];
       case ComponentType.ultrasonic:
         final d = (component.properties['distance'] as num?)?.toDouble() ?? 100;
         return [
