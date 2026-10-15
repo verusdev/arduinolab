@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/circuit.dart';
 import '../../models/component_type.dart';
+import '../../models/pin.dart';
 import '../../state/app_state.dart';
 
 /// Inspector for the selected component plus circuit level information.
@@ -23,10 +24,25 @@ class PropertiesPanel extends StatelessWidget {
         if (component == null)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              'Tap a component on the board to edit it.\n'
-              'Tap two pins in a row to draw a wire.',
-              style: TextStyle(color: Colors.black54),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Nothing selected.',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  'Tap a part to inspect it. Its pin names are printed on the '
+                  'canvas — tap one pin, then another pin, to draw a wire '
+                  'between them.',
+                  style: TextStyle(color: Colors.black54, fontSize: 12),
+                ),
+                SizedBox(height: 10),
+                _Shortcut(label: 'Double-tap', text: 'rotate the part'),
+                _Shortcut(label: 'Long-press', text: 'delete the part'),
+                _Shortcut(label: 'Drag', text: 'move the part'),
+              ],
             ),
           )
         else ...[
@@ -52,6 +68,14 @@ class PropertiesPanel extends StatelessWidget {
               style: const TextStyle(fontSize: 11, color: Colors.black45)),
           const SizedBox(height: 8),
           ..._controls(context, app, component),
+          const Divider(height: 24),
+          Text('Connections (${component.spec.pins.length})',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          const SizedBox(height: 2),
+          const Text('Tap a pin to start a wire from it.',
+              style: TextStyle(fontSize: 11, color: Colors.black45)),
+          const SizedBox(height: 6),
+          for (final pin in component.spec.pins) _pinTile(app, component, pin),
           const Divider(height: 24),
         ],
         if (warnings.isNotEmpty) ...[
@@ -80,6 +104,84 @@ class PropertiesPanel extends StatelessWidget {
           for (final w in app.project.circuit.wires) _wireTile(app, w),
       ],
     );
+  }
+
+  // ------------------------------------------------------------------- pins
+
+  Widget _pinTile(AppState app, PlacedComponent component, Pin pin) {
+    final targets = _connections(app, component, pin);
+    final pending = app.pendingWire;
+    final isPending = pending != null &&
+        pending.componentId == component.id &&
+        pending.pinId == pin.id;
+    final connected = targets.isNotEmpty;
+
+    return ListTile(
+      dense: true,
+      visualDensity: VisualDensity.compact,
+      contentPadding: EdgeInsets.zero,
+      leading: Container(
+        width: 12,
+        height: 12,
+        margin: const EdgeInsets.only(left: 6, top: 6),
+        decoration: BoxDecoration(
+          color: isPending ? const Color(0xFFFF9800) : _pinColor(pin),
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.black26),
+        ),
+      ),
+      title: Text(
+        pin.displayName,
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+      ),
+      subtitle: Text(
+        connected ? targets.join('\n') : 'Not connected',
+        style: TextStyle(
+          fontSize: 11,
+          color: connected ? Colors.black87 : Colors.black38,
+        ),
+      ),
+      trailing: Icon(
+        isPending ? Icons.radio_button_checked : Icons.cable,
+        size: 16,
+        color: isPending ? const Color(0xFFFF9800) : Colors.black26,
+      ),
+      onTap: () => app.tapPin(component.id, pin.id),
+    );
+  }
+
+  /// Labels of everything wired to [pin], e.g. `→ Arduino UNO · D7`.
+  List<String> _connections(AppState app, PlacedComponent c, Pin pin) {
+    final out = <String>[];
+    for (final wire in app.project.circuit.wires) {
+      if (wire.aComponent == c.id && wire.aPin == pin.id) {
+        final other = app.project.circuit.componentById(wire.bComponent);
+        out.add('→ ${other?.spec.label ?? '?'} · ${wire.bPin}');
+      } else if (wire.bComponent == c.id && wire.bPin == pin.id) {
+        final other = app.project.circuit.componentById(wire.aComponent);
+        out.add('→ ${other?.spec.label ?? '?'} · ${wire.aPin}');
+      }
+    }
+    return out;
+  }
+
+  Color _pinColor(Pin pin) {
+    switch (pin.kind) {
+      case PinKind.power:
+        return const Color(0xFFC9A227);
+      case PinKind.ground:
+        return const Color(0xFF37474F);
+      case PinKind.pwm:
+        return const Color(0xFF2F6FED);
+      case PinKind.analogIn:
+        return const Color(0xFF00897B);
+      case PinKind.i2c:
+        return const Color(0xFF8E24AA);
+      case PinKind.digital:
+        return const Color(0xFF546E7A);
+      case PinKind.passive:
+        return const Color(0xFF90A4AE);
+    }
   }
 
   Widget _wireTile(AppState app, Wire wire) {
@@ -221,6 +323,35 @@ class PropertiesPanel extends StatelessWidget {
         ),
         Slider(value: value.clamp(min, max), min: min, max: max, onChanged: onChanged),
       ],
+    );
+  }
+}
+
+class _Shortcut extends StatelessWidget {
+  const _Shortcut({required this.label, required this.text});
+
+  final String label;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 88,
+            child: Text(label,
+                style: const TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w600)),
+          ),
+          Expanded(
+            child: Text(text,
+                style: const TextStyle(fontSize: 12, color: Colors.black54)),
+          ),
+        ],
+      ),
     );
   }
 }

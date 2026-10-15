@@ -23,9 +23,39 @@ class Pin {
   /// Arduino logical pin number: D0..D13 -> 0..13, A0..A5 -> 14..19.
   final int? logic;
 
+  /// Pin ids whose full name is worth printing on the schematic.
+  static const Set<String> namedIds = {
+    'VCC',
+    'GND',
+    'TRIG',
+    'ECHO',
+    'DATA',
+    'SDA',
+    'SCL',
+    'SIG',
+  };
+
   bool get isSupply => kind == PinKind.power || kind == PinKind.ground;
   bool get isGround => kind == PinKind.ground;
   bool get isPower => kind == PinKind.power;
+
+  /// Text drawn next to the pin. Well known headers keep their full name so a
+  /// sensor never shows a bare `V` where `VCC` is expected.
+  String get displayName {
+    if (namedIds.contains(id)) return id;
+    if (label.isNotEmpty) return label;
+    return id;
+  }
+
+  /// True when the name says nothing beyond position (`1`, `2`, ...).
+  bool get hasGenericName {
+    final name = displayName;
+    if (name.isEmpty) return true;
+    for (final unit in name.codeUnits) {
+      if (unit < 0x30 || unit > 0x39) return false;
+    }
+    return true;
+  }
 }
 
 /// Helpers for translating between board labels and logical pin numbers.

@@ -19,37 +19,62 @@ class CanvasView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
-    return Container(
-      color: const Color(0xFFFBFCFD),
-      child: InteractiveViewer(
-        constrained: false,
-        boundaryMargin: const EdgeInsets.all(800),
-        minScale: 0.3,
-        maxScale: 2.5,
-        child: SizedBox(
-          width: canvasWidth,
-          height: canvasHeight,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: _WiresPainter(
-                    circuit: app.project.circuit,
-                    selectedWire: app.selectedWireId,
-                    pending: app.pendingWire,
-                  ),
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Container(
+            color: const Color(0xFFFBFCFD),
+            child: InteractiveViewer(
+              constrained: false,
+              boundaryMargin: const EdgeInsets.all(800),
+              minScale: 0.3,
+              maxScale: 2.5,
+              child: SizedBox(
+                width: canvasWidth,
+                height: canvasHeight,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Positioned.fill(
+                      child: CustomPaint(
+                        painter: _WiresPainter(
+                          circuit: app.project.circuit,
+                          selectedWire: app.selectedWireId,
+                          pending: app.pendingWire,
+                        ),
+                      ),
+                    ),
+                    for (final c in app.project.circuit.components)
+                      _ComponentNode(key: ValueKey(c.id), id: c.id),
+                  ],
                 ),
               ),
-              for (final c in app.project.circuit.components)
-                _ComponentNode(key: ValueKey(c.id), id: c.id),
-            ],
+            ),
           ),
         ),
-      ),
+        const Positioned(left: 12, top: 12, child: _WiringHint()),
+      ],
     );
   }
 }
+
+/// Smallest gap between two pins of [type], used to size each pin's tap target
+/// so densely packed headers stay individually selectable.
+final Map<ComponentType, double> _pinHitCache = <ComponentType, double>{};
+
+double _pinHitSize(ComponentType type) =>
+    _pinHitCache.putIfAbsent(type, () {
+      final pins = ComponentSpecs.of(type).pins;
+      var best = 24.0;
+      for (var i = 0; i < pins.length; i++) {
+        for (var j = i + 1; j < pins.length; j++) {
+          final d = (pins[i].dx - pins[j].dx).abs() +
+              (pins[i].dy - pins[j].dy).abs();
+          if (d < best) best = d;
+        }
+      }
+      return best.clamp(10.0, 24.0);
+    });
 
 class _WiresPainter extends CustomPainter {
   _WiresPainter({
@@ -130,6 +155,99 @@ class _WiresPainter extends CustomPainter {
   bool shouldRepaint(covariant _WiresPainter old) => true;
 }
 
+/// A floating banner that explains, and tracks, the two-tap wiring gesture.
+class _WiringHint extends StatelessWidget {
+  const _WiringHint();
+
+  @override
+  Widget build(BuildContext context) {
+    final app = context.watch<AppState>();
+    final pending = app.pendingWire;
+
+    if (pending == null) {
+      return const _HintCard(
+        icon: Icons.ads_click,
+        title: 'Tap a pin, then tap another pin to draw a wire',
+        subtitle: 'Double-tap a part to rotate · long-press to delete',
+      );
+    }
+
+    final component = app.project.circuit.componentById(pending.componentId);
+    return _HintCard(
+      icon: Icons.cable,
+      title: 'From ${component?.spec.label ?? '?'} · ${pending.pinId}'
+          ' — now tap the target pin',
+      subtitle: 'Orange pins are ready to connect · tap it again to cancel',
+      highlight: true,
+      onCancel: app.cancelWire,
+    );
+  }
+}
+
+class _HintCard extends StatelessWidget {
+  const _HintCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.highlight = false,
+    this.onCancel,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool highlight;
+  final VoidCallback? onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      elevation: 3,
+      borderRadius: BorderRadius.circular(10),
+      color: highlight ? const Color(0xFFFFF3E0) : Colors.white,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 330),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(12, 8, onCancel == null ? 12 : 4, 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon,
+                  size: 18,
+                  color: highlight
+                      ? const Color(0xFFEF6C00)
+                      : const Color(0xFF546E7A)),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 2),
+                    Text(subtitle,
+                        style: const TextStyle(
+                            fontSize: 11, color: Colors.black54)),
+                  ],
+                ),
+              ),
+              if (onCancel != null)
+                IconButton(
+                  tooltip: 'Cancel wire',
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.close, size: 16),
+                  onPressed: onCancel,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ComponentNode extends StatelessWidget {
   const _ComponentNode({super.key, required this.id});
 
@@ -142,9 +260,11 @@ class _ComponentNode extends StatelessWidget {
     if (component == null) return const SizedBox.shrink();
     final visual = ComponentVisual.of(app, component);
     final selected = app.selectedComponentId == component.id;
+    final wiring = app.pendingWire != null;
     final pendingPin = app.pendingWire?.componentId == component.id
         ? app.pendingWire?.pinId
         : null;
+    final hit = _pinHitSize(component.type);
 
     return Positioned(
       left: component.x,
@@ -176,15 +296,16 @@ class _ComponentNode extends StatelessWidget {
                     visual: visual,
                     selected: selected,
                     pendingPinId: pendingPin,
+                    wiring: wiring,
                   ),
                 ),
               ),
               for (final pin in component.spec.pins)
                 Positioned(
-                  left: pin.dx - 9,
-                  top: pin.dy - 9,
-                  width: 18,
-                  height: 18,
+                  left: pin.dx - hit / 2,
+                  top: pin.dy - hit / 2,
+                  width: hit,
+                  height: hit,
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTap: () => app.tapPin(component.id, pin.id),

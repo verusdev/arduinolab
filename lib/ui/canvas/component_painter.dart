@@ -14,6 +14,7 @@ class ComponentPainter extends CustomPainter {
     required this.visual,
     this.selected = false,
     this.pendingPinId,
+    this.wiring = false,
   });
 
   final PlacedComponent component;
@@ -21,8 +22,15 @@ class ComponentPainter extends CustomPainter {
   final bool selected;
   final String? pendingPinId;
 
+  /// True while a wire is being drawn anywhere on the canvas, which turns every
+  /// connection point into an obvious, clickable target.
+  final bool wiring;
+
   static const Color _gold = Color(0xFFC9A227);
   static const Color _teal = Color(0xFF0B3C49);
+
+  /// Boards and breadboards carry too many pins to label without noise.
+  static const int _labelPinLimit = 12;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -67,7 +75,7 @@ class ComponentPainter extends CustomPainter {
         _photoresistor(canvas, size);
         break;
     }
-    _paintPins(canvas);
+    _paintPins(canvas, size);
     if (selected) {
       final r = Rect.fromLTWH(0, 0, size.width, size.height).inflate(4);
       canvas.drawRRect(
@@ -80,7 +88,9 @@ class ComponentPainter extends CustomPainter {
     }
   }
 
-  void _paintPins(Canvas canvas) {
+  void _paintPins(Canvas canvas, Size size) {
+    final isBoard = component.type == ComponentType.arduinoUno;
+    final labelled = component.spec.pins.length <= _labelPinLimit && !isBoard;
     for (final p in component.spec.pins) {
       if (p.id.startsWith('+') || p.id.startsWith('-')) continue;
       final isPending = p.id == pendingPinId;
@@ -89,17 +99,78 @@ class ComponentPainter extends CustomPainter {
           : (p.kind == PinKind.ground
               ? const Color(0xFF37474F)
               : _gold);
-      canvas.drawCircle(Offset(p.dx, p.dy), isPending ? 5 : 3,
+      canvas.drawCircle(Offset(p.dx, p.dy), isPending ? 5.5 : 3,
           Paint()..color = color);
       canvas.drawCircle(
         Offset(p.dx, p.dy),
-        isPending ? 5 : 3,
+        isPending ? 5.5 : 3,
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1
           ..color = const Color(0x66000000),
       );
+      if (!labelled || p.hasGenericName) continue;
+      _pinLabel(canvas, p.displayName, p, size,
+          emphasize: isPending || wiring || selected);
     }
+  }
+
+  /// Prints a pin name just outside the component, biased to the edge the pin
+  /// sits on so it never covers the body artwork.
+  void _pinLabel(Canvas canvas, String text, Pin p, Size size,
+      {required bool emphasize}) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          fontSize: 6.5,
+          height: 1.0,
+          fontWeight: emphasize ? FontWeight.bold : FontWeight.w500,
+          color: emphasize ? Colors.white : const Color(0xFFF1F5F7),
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    const gap = 4.0;
+    final below = p.dy >= size.height - 1;
+    final above = p.dy <= 1;
+    final onLeft = p.dx <= 1;
+    final onRight = p.dx >= size.width - 1;
+
+    final Offset topLeft;
+    if (below || (!above && !onLeft && !onRight)) {
+      topLeft = Offset(p.dx - tp.width / 2, p.dy + gap);
+    } else if (above) {
+      topLeft = Offset(p.dx - tp.width / 2, p.dy - gap - tp.height);
+    } else if (onLeft) {
+      topLeft = Offset(p.dx - gap - tp.width, p.dy - tp.height / 2);
+    } else {
+      topLeft = Offset(p.dx + gap, p.dy - tp.height / 2);
+    }
+
+    final chip = RRect.fromRectAndRadius(
+      Rect.fromLTWH(
+          topLeft.dx - 2.5, topLeft.dy - 1, tp.width + 5, tp.height + 2),
+      const Radius.circular(2.5),
+    );
+    canvas.drawRRect(
+      chip,
+      Paint()
+        ..color = emphasize
+            ? const Color(0xE6EF6C00)
+            : const Color(0xB3181C1F),
+    );
+    if (emphasize) {
+      canvas.drawRRect(
+        chip,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 0.9
+          ..color = const Color(0xFFFFFFFF),
+      );
+    }
+    tp.paint(canvas, topLeft);
   }
 
   // ---------------------------------------------------------------- helpers
@@ -311,9 +382,9 @@ class ComponentPainter extends CustomPainter {
     canvas.translate(center.dx, center.dy);
     canvas.rotate(angle);
     canvas.drawRRect(
-        RRect.fromRectAndRadius(
-            const Rect.fromLTWH(-3, -10, 6, 20), const Radius.circular(3)),
-        Paint()..color = const Color(0xFFCFD8DC));
+      RRect.fromRectAndRadius(
+          const Rect.fromLTWH(-3, -10, 6, 20), const Radius.circular(3)),
+      Paint()..color = const Color(0xFFCFD8DC));
     canvas.restore();
     canvas.drawCircle(center, 12, Paint()..color = const Color(0xFF90A4AE));
     canvas.drawCircle(center, 3, Paint()..color = const Color(0xFF37474F));
@@ -329,9 +400,9 @@ class ComponentPainter extends CustomPainter {
     canvas.translate(center.dx, center.dy);
     canvas.rotate(visual.angle * math.pi / 180.0 - math.pi / 2);
     canvas.drawRRect(
-        RRect.fromRectAndRadius(
-            const Rect.fromLTWH(-3, 0, 6, 18), const Radius.circular(3)),
-        Paint()..color = const Color(0xFFECEFF1));
+      RRect.fromRectAndRadius(
+          const Rect.fromLTWH(-3, 0, 6, 18), const Radius.circular(3)),
+      Paint()..color = const Color(0xFFECEFF1));
     canvas.restore();
     canvas.drawCircle(center, 8, Paint()..color = const Color(0xFFBBDEFB));
     canvas.drawCircle(center, 3, Paint()..color = const Color(0xFF0D47A1));
@@ -393,6 +464,8 @@ class ComponentPainter extends CustomPainter {
             Paint()..color = const Color(0xFF78909C));
       }
     }
+    _label(canvas, 'DHT11', Offset(size.width / 2, 2),
+        size: 7, align: TextAlign.center);
   }
 
   void _photoresistor(Canvas canvas, Size size) {
@@ -416,6 +489,7 @@ class ComponentPainter extends CustomPainter {
   bool shouldRepaint(covariant ComponentPainter old) =>
       old.visual != visual ||
       old.selected != selected ||
+      old.wiring != wiring ||
       old.pendingPinId != pendingPinId ||
       old.component.rotation != component.rotation;
 }
