@@ -35,17 +35,27 @@ class CanvasView extends StatelessWidget {
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    Positioned.fill(
-                      child: CustomPaint(
-                        painter: _WiresPainter(
-                          circuit: app.project.circuit,
-                          selectedWire: app.selectedWireId,
-                          pending: app.pendingWire,
-                        ),
+                    const Positioned.fill(
+                      child: IgnorePointer(
+                        child: CustomPaint(painter: _GridPainter()),
                       ),
                     ),
                     for (final c in app.project.circuit.components)
                       _ComponentNode(key: ValueKey(c.id), id: c.id),
+                    // Wires sit above the parts: every board pin lives inside
+                    // the board body, so a wire drawn underneath would vanish
+                    // under the board instead of landing on its pin.
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: CustomPaint(
+                          painter: _WiresPainter(
+                            circuit: app.project.circuit,
+                            selectedWire: app.selectedWireId,
+                            pending: app.pendingWire,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -76,6 +86,25 @@ double _pinHitSize(ComponentType type) =>
       return best.clamp(10.0, 24.0);
     });
 
+/// The dotted work grid, painted beneath every part.
+class _GridPainter extends CustomPainter {
+  const _GridPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final grid = Paint()..color = const Color(0xFFE9EEF3);
+    for (var x = 0.0; x < size.width; x += 40) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), grid);
+    }
+    for (var y = 0.0; y < size.height; y += 40) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _GridPainter old) => false;
+}
+
 class _WiresPainter extends CustomPainter {
   _WiresPainter({
     required this.circuit,
@@ -89,13 +118,8 @@ class _WiresPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final grid = Paint()..color = const Color(0xFFE9EEF3);
-    for (var x = 0.0; x < size.width; x += 40) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), grid);
-    }
-    for (var y = 0.0; y < size.height; y += 40) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
-    }
+    // Several wires may meet on one pin; the terminal is drawn only once.
+    final terminated = <String>{};
 
     for (final wire in circuit.wires) {
       final a = circuit.componentById(wire.aComponent);
@@ -103,13 +127,16 @@ class _WiresPainter extends CustomPainter {
       if (a == null || b == null) continue;
       final pa = a.pinPositionById(wire.aPin);
       final pb = b.pinPositionById(wire.bPin);
+      final color = Color(wire.color);
       _drawWire(
         canvas,
         Offset(pa.$1, pa.$2),
         Offset(pb.$1, pb.$2),
-        Color(wire.color),
+        color,
         wire.id == selectedWire ? 5 : 3,
       );
+      _terminal(canvas, circuit, wire.aComponent, wire.aPin, color, terminated);
+      _terminal(canvas, circuit, wire.bComponent, wire.bPin, color, terminated);
     }
 
     final start = pending;
@@ -127,6 +154,26 @@ class _WiresPainter extends CustomPainter {
         );
       }
     }
+  }
+
+  /// Marks the exact pin a wire lands on, in the wire's own colour, so the
+  /// connection stays readable wherever the wire runs.
+  void _terminal(Canvas canvas, Circuit circuit, String componentId,
+      String pinId, Color color, Set<String> terminated) {
+    if (!terminated.add('$componentId:$pinId')) return;
+    final component = circuit.componentById(componentId);
+    if (component == null) return;
+    final p = component.pinPositionById(pinId);
+    final at = Offset(p.$1, p.$2);
+    canvas.drawCircle(at, 3.6, Paint()..color = color);
+    canvas.drawCircle(
+      at,
+      3.6,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..color = Colors.white,
+    );
   }
 
   void _drawWire(Canvas canvas, Offset a, Offset b, Color color, double width) {

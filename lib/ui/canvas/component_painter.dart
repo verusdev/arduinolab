@@ -219,7 +219,7 @@ class ComponentPainter extends CustomPainter {
         size: 16, weight: FontWeight.bold, align: TextAlign.center);
     _label(canvas, 'UNO', Offset(size.width / 2, size.height / 2),
         size: 14, align: TextAlign.center);
-    _label(canvas, 'DIGITAL', const Offset(14, 22),
+    _label(canvas, 'DIGITAL', const Offset(2, 2),
         size: 7, color: const Color(0xFFBFE3EA));
     _label(canvas, 'ANALOG / POWER', Offset(120, size.height - 24),
         size: 7, color: const Color(0xFFBFE3EA));
@@ -231,10 +231,15 @@ class ComponentPainter extends CustomPainter {
     _rounded(canvas, Rect.fromLTWH(2, size.height - 60, 24, 34),
         const Color(0xFF1B1F22),
         radius: 4);
+    // Every header is silkscreened, GND pins included: without them a wire
+    // landing on the ground rail looks like it connects to nothing.
     for (final p in component.spec.pins) {
-      if (p.logic == null && p.kind != PinKind.power) continue;
-      _label(canvas, p.label, Offset(p.dx, p.dy + 4),
-          size: 6, color: const Color(0xFFD8EEF3), align: TextAlign.center);
+      if (p.hasGenericName) continue;
+      _label(canvas, p.displayName, Offset(p.dx, p.dy + 5),
+          size: 6.5,
+          weight: FontWeight.w600,
+          color: const Color(0xFFE4F2F6),
+          align: TextAlign.center);
     }
   }
 

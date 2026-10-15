@@ -68,6 +68,17 @@ void main() {
       expect(board.any((p) => p.hasGenericName), isFalse);
     });
 
+    test('the board silkscreens every header, ground rails included', () {
+      final labels = ComponentSpecs.of(ComponentType.arduinoUno)
+          .pins
+          .map((p) => p.displayName)
+          .toList();
+      expect(labels.where((l) => l.startsWith('D')).toList(), hasLength(14));
+      expect(labels.where((l) => l.startsWith('A')).toList(), hasLength(6));
+      expect(labels.where((l) => l == 'GND').toList(), hasLength(2));
+      expect(labels, containsAll(<String>['VIN', '3V3', '5V']));
+    });
+
     test('serial monitor pins survive as named headers', () {
       const pin = Pin('TRIG', 'TRIG', 0, 0, PinKind.digital);
       expect(pin.displayName, 'TRIG');
