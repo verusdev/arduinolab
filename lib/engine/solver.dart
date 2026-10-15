@@ -173,6 +173,8 @@ class Solver {
         case ComponentType.lcd16x2:
         case ComponentType.ultrasonic:
         case ComponentType.dht11:
+        case ComponentType.robotCar:
+        case ComponentType.robotArm:
           break;
       }
     }
@@ -284,6 +286,15 @@ class Solver {
           dhtHum[logic] =
               ((c.properties['humidity'] as num?)?.toDouble() ?? 60)
                   .clamp(0.0, 100.0);
+        case ComponentType.robotCar:
+          // The onboard HC-SR04 is optional hardware: stay quiet when its ECHO
+          // header is not wired, and otherwise report exactly like a discrete
+          // sensor so `read distance` works unchanged.
+          final echoNet = netlist.netOf(c.id, 'ECHO');
+          final carLogic = logicOfNet[echoNet];
+          if (carLogic == null) break;
+          final carCm = (c.properties['distance'] as num?)?.toDouble() ?? 100;
+          ultrasonic[carLogic] = carCm.clamp(2.0, 400.0);
         case ComponentType.arduinoUno:
         case ComponentType.breadboard:
         case ComponentType.resistor:
@@ -293,6 +304,7 @@ class Solver {
         case ComponentType.servo:
         case ComponentType.buzzer:
         case ComponentType.lcd16x2:
+        case ComponentType.robotArm:
           break;
       }
     }

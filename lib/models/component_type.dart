@@ -14,7 +14,9 @@ enum ComponentType {
   lcd16x2,
   ultrasonic,
   dht11,
-  photoresistor;
+  photoresistor,
+  robotCar,
+  robotArm;
 
   static ComponentType parse(String name) =>
       ComponentType.values.firstWhere((t) => t.name == name,
@@ -277,6 +279,45 @@ class ComponentSpecs {
         Pin('2', '', 44, 8, PinKind.passive),
       ],
       defaults: {'light': 0.5},
+    ),
+    ComponentType.robotCar: ComponentSpec(
+      type: ComponentType.robotCar,
+      label: 'Robot Car',
+      category: 'Robotics',
+      width: 140,
+      height: 100,
+      pins: const [
+        Pin('IN1', 'IN1', 10, 78, PinKind.digital),
+        Pin('IN2', 'IN2', 32, 78, PinKind.digital),
+        Pin('IN3', 'IN3', 54, 78, PinKind.digital),
+        Pin('IN4', 'IN4', 76, 78, PinKind.digital),
+        Pin('EN1', 'EN1', 98, 78, PinKind.pwm),
+        Pin('EN2', 'EN2', 120, 78, PinKind.pwm),
+        Pin('5V', '5V', 14, 96, PinKind.power),
+        Pin('GND', 'GND', 36, 96, PinKind.ground),
+        Pin('TRIG', 'TRIG', 88, 96, PinKind.digital),
+        Pin('ECHO', 'ECHO', 110, 96, PinKind.digital),
+      ],
+      defaults: {
+        'distance': 100.0,
+        'autoDistance': true,
+        'wheelPhase': 0.0,
+      },
+    ),
+    ComponentType.robotArm: ComponentSpec(
+      type: ComponentType.robotArm,
+      label: 'Robot Arm',
+      category: 'Robotics',
+      width: 130,
+      height: 128,
+      pins: const [
+        Pin('BASE', 'BASE', 12, 112, PinKind.pwm),
+        Pin('SHLD', 'SHLD', 34, 112, PinKind.pwm),
+        Pin('ELBW', 'ELBW', 56, 112, PinKind.pwm),
+        Pin('GRIP', 'GRIP', 78, 112, PinKind.pwm),
+        Pin('5V', '5V', 100, 112, PinKind.power),
+        Pin('GND', 'GND', 122, 112, PinKind.ground),
+      ],
     ),
   };
 

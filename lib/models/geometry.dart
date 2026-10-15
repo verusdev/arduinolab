@@ -11,3 +11,8 @@ import 'dart:math' as math;
 }
 
 double degToRad(double deg) => deg * math.pi / 180.0;
+
+/// Size of the workspace parts are placed on. The canvas renders it and the
+/// robot physics treats its border as a wall, so both must agree.
+const double kWorkspaceWidth = 2400;
+const double kWorkspaceHeight = 1600;

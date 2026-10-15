@@ -5,10 +5,12 @@ import 'package:flutter/foundation.dart';
 import '../blocks/block_catalog.dart';
 import '../blocks/block_model.dart';
 import '../core/ids.dart';
+import '../engine/robotics.dart';
 import '../engine/simulation_engine.dart';
 import '../examples/examples.dart';
 import '../models/circuit.dart';
 import '../models/component_type.dart';
+import '../models/geometry.dart';
 import '../models/project.dart';
 import '../services/storage_service.dart';
 
@@ -35,6 +37,14 @@ class AppState extends ChangeNotifier {
   late SimulationEngine engine;
 
   Timer? _timer;
+
+  /// Where each vehicle was parked when the run started, so Reset can put it
+  /// back instead of leaving it wherever it happened to stop.
+  final Map<String, RigPose> _spawns = {};
+
+  /// Firmware clock reading at the previous frame, used to step the vehicles by
+  /// the same amount of time the program believes has passed.
+  int _lastTimeUs = 0;
 
   String? selectedComponentId;
   String? selectedWireId;
@@ -270,13 +280,64 @@ class AppState extends ChangeNotifier {
     engine.setCircuit(project.circuit);
     engine.setProgram(project.program);
     engine.start();
+    _spawns.clear();
+    for (final c in project.circuit.components) {
+      if (c.type == ComponentType.robotCar) {
+        _spawns[c.id] = RigPose(c.x, c.y, c.rotation);
+      }
+    }
+    _lastTimeUs = engine.runtime.timeUs;
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(milliseconds: 16), (_) {
       engine.tick(0.016);
+      final nowUs = engine.runtime.timeUs;
+      // Vehicles are driven by the firmware's own clock, not the frame clock:
+      // a `wait 300` really is 300 ms of motor time. The delay blocks jump the
+      // clock forward, so the step is capped to keep the motion watchable.
+      final elapsed = ((nowUs - _lastTimeUs) / 1e6).clamp(0.0, 0.5);
+      _lastTimeUs = nowUs;
+      _driveVehicles(elapsed);
       notifyListeners();
     });
     setMessage(null);
     _kick();
+  }
+
+  /// Advances every self-driving vehicle by one frame.
+  ///
+  /// Runs after [SimulationEngine.tick] so the program has already written this
+  /// frame's pin levels, and writes the sensor reading back into the component
+  /// properties, which is where the solver looks for it.
+  void _driveVehicles(double dt) {
+    for (final c in project.circuit.components) {
+      if (c.type != ComponentType.robotCar) continue;
+
+      final commands = readRigCommands(engine, c);
+      final moved = CarPhysics.clampToField(
+        CarPhysics.step(RigPose(c.x, c.y, c.rotation), commands.left,
+            commands.right, dt),
+        c.width,
+        c.height,
+        kWorkspaceWidth,
+        kWorkspaceHeight,
+      );
+      c.x = moved.x;
+      c.y = moved.y;
+      c.rotation = moved.headingDeg;
+
+      if (!commands.isIdle) {
+        c.properties['wheelPhase'] = CarPhysics.advanceWheelPhase(
+          (c.properties['wheelPhase'] as num?)?.toDouble() ?? 0,
+          commands.left,
+          commands.right,
+          dt,
+        );
+      }
+      if ((c.properties['autoDistance'] as bool?) ?? true) {
+        c.properties['distance'] =
+            CarPhysics.clearanceCm(moved, c, kWorkspaceWidth, kWorkspaceHeight);
+      }
+    }
   }
 
   void stop() {
@@ -289,6 +350,19 @@ class AppState extends ChangeNotifier {
   void resetSimulation() {
     stop();
     engine.reset();
+    _lastTimeUs = engine.runtime.timeUs;
+    for (final entry in _spawns.entries) {
+      final c = project.circuit.componentById(entry.key);
+      if (c == null) continue;
+      c.x = entry.value.x;
+      c.y = entry.value.y;
+      c.rotation = entry.value.headingDeg;
+    }
+    for (final c in project.circuit.components) {
+      if (c.type == ComponentType.robotCar) {
+        c.properties['wheelPhase'] = 0.0;
+      }
+    }
     _kick();
   }
 
@@ -296,6 +370,7 @@ class AppState extends ChangeNotifier {
 
   void replaceProject(Project next) {
     stop();
+    _spawns.clear();
     project = next;
     engine =
         SimulationEngine(circuit: project.circuit, program: project.program);

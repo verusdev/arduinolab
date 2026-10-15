@@ -74,6 +74,12 @@ class ComponentPainter extends CustomPainter {
       case ComponentType.photoresistor:
         _photoresistor(canvas, size);
         break;
+      case ComponentType.robotCar:
+        _robotCar(canvas, size);
+        break;
+      case ComponentType.robotArm:
+        _robotArm(canvas, size);
+        break;
     }
     _paintPins(canvas, size);
     if (selected) {
@@ -488,6 +494,167 @@ class ComponentPainter extends CustomPainter {
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2
           ..color = const Color(0xFF8D6E63));
+  }
+
+  // ------------------------------------------------------------------ robots
+
+  /// Top-down view. The car drives towards its local +x axis, which is also the
+  /// direction `rotation` points, so the drawn nose always matches the physics.
+  void _robotCar(Canvas canvas, Size size) {
+    _rounded(canvas, Rect.fromLTWH(6, 70, size.width - 12, 28),
+        const Color(0xFF1B1F22),
+        radius: 5);
+    _rounded(canvas, Rect.fromLTWH(6, 4, size.width - 12, 62),
+        const Color(0xFF2E3A40),
+        radius: 12,
+        stroke: const Color(0xFF141A1D),
+        strokeWidth: 1.5);
+    _rounded(canvas, Rect.fromLTWH(18, 14, size.width - 36, 42),
+        const Color(0xFF3B474D),
+        radius: 8);
+
+    _wheel(canvas, const Rect.fromLTWH(0, 12, 9, 26), visual.wheelPhase,
+        visual.leftSpeed);
+    _wheel(canvas, Rect.fromLTWH(size.width - 9, 12, 9, 26), visual.wheelPhase,
+        visual.rightSpeed);
+
+    // Onboard HC-SR04: the two cans sit on the front bumper.
+    for (final y in const [22.0, 46.0]) {
+      canvas.drawCircle(Offset(size.width - 18, y), 6,
+          Paint()..color = const Color(0xFF90A4AE));
+      canvas.drawCircle(Offset(size.width - 18, y), 3.2,
+          Paint()..color = const Color(0xFF37474F));
+    }
+
+    _carHeading(canvas, size);
+    _label(canvas, 'ROBOT CAR', Offset(size.width / 2, 55),
+        size: 6.5, color: const Color(0xFFCFD8DC), align: TextAlign.center);
+  }
+
+  void _wheel(Canvas canvas, Rect r, double phase, double speed) {
+    _rounded(canvas, r, const Color(0xFF212121), radius: 4);
+    final tread = Paint()
+      ..color = const Color(0xFF556066)
+      ..strokeWidth = 1.4;
+    // Scrolling the tread reads as rotation without distorting the tyre.
+    for (var i = 0; i < 4; i++) {
+      final t = ((i / 4) + phase / 360.0) % 1.0;
+      final y = r.top + 3 + t * (r.height - 6);
+      canvas.drawLine(
+          Offset(r.left + 1.2, y), Offset(r.right - 1.2, y), tread);
+    }
+    final glow = speed.abs().clamp(0.0, 1.0);
+    if (glow > 0.05) {
+      _rounded(
+          canvas,
+          r,
+          (speed > 0 ? const Color(0xFF43A047) : const Color(0xFFE53935))
+              .withValues(alpha: 0.15 + 0.6 * glow),
+          radius: 4);
+    }
+  }
+
+  /// A nose chevron that lights up with forward/backward drive.
+  void _carHeading(Canvas canvas, Size size) {
+    final speed = (visual.leftSpeed + visual.rightSpeed) / 2;
+    final magnitude = speed.abs().clamp(0.0, 1.0);
+    final color = magnitude < 0.05
+        ? const Color(0xFF7B8A91)
+        : (speed > 0 ? const Color(0xFF00E5FF) : const Color(0xFFFF7043))
+            .withValues(alpha: 0.35 + 0.65 * magnitude);
+    final tipX = size.width - 34;
+    final path = Path()
+      ..moveTo(tipX + 10, 35)
+      ..lineTo(tipX - 6, 24)
+      ..lineTo(tipX - 6, 46)
+      ..close();
+    canvas.drawPath(path, Paint()..color = color);
+  }
+
+  /// Side view of a 4-joint arm: the shoulder, elbow and gripper move in the
+  /// plane of the drawing, while the base yaw is shown on its dial.
+  void _robotArm(Canvas canvas, Size size) {
+    _rounded(canvas, Rect.fromLTWH(6, 106, size.width - 12, 20),
+        const Color(0xFF1B1F22),
+        radius: 4);
+
+    const pivot = Offset(65, 90);
+    final joints =
+        visual.joints.length >= 4 ? visual.joints : const <double>[0, 0, 0, 0];
+    final shoulder = joints[1];
+    final elbow = joints[2];
+    final grip = joints[3];
+
+    canvas.drawOval(
+      Rect.fromCenter(center: const Offset(65, 96), width: 80, height: 18),
+      Paint()..color = const Color(0xFF455A64),
+    );
+    canvas.drawOval(
+      Rect.fromCenter(center: const Offset(65, 96), width: 80, height: 18),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..color = const Color(0xFF263238),
+    );
+
+    final forearmAngle = shoulder + (elbow - 90);
+    final elbowPoint = _along(pivot, shoulder, 34);
+    final wrist = _along(elbowPoint, forearmAngle, 28);
+
+    _limb(canvas, pivot, elbowPoint, 11, const Color(0xFF607D8B));
+    _limb(canvas, elbowPoint, wrist, 8.5, const Color(0xFF78909C));
+
+    final opening = (grip / 180.0).clamp(0.0, 1.0);
+    final spread = 9 + opening * 20;
+    for (final sign in const [-1.0, 1.0]) {
+      _limb(canvas, wrist, _along(wrist, forearmAngle + sign * spread, 15), 4.5,
+          const Color(0xFFB0BEC5));
+    }
+
+    for (final joint in [pivot, elbowPoint, wrist]) {
+      canvas.drawCircle(joint, 5, Paint()..color = const Color(0xFF37474F));
+      canvas.drawCircle(joint, 5,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.2
+            ..color = const Color(0xFF90A4AE));
+    }
+
+    _baseDial(canvas, pivot, joints[0]);
+    _label(canvas, 'ROBOT ARM', const Offset(4, 2),
+        size: 6.5, color: const Color(0xFFB0BEC5));
+  }
+
+  /// Base yaw indicator: a needle sweeping around the arm's foot.
+  void _baseDial(Canvas canvas, Offset pivot, double yawDeg) {
+    const centre = Offset(65, 96);
+    final h = yawDeg * math.pi / 180.0;
+    canvas.drawLine(
+        centre,
+        centre + Offset(math.cos(h) * 14, math.sin(h) * 14),
+        Paint()
+          ..strokeWidth = 3
+          ..strokeCap = StrokeCap.round
+          ..color = const Color(0xFFFFB300));
+    canvas.drawCircle(centre, 3, Paint()..color = const Color(0xFFFFF3E0));
+  }
+
+  /// A limb of [length] from [from], measured in degrees counter-clockwise from
+  /// the +x axis (90° points straight up the screen).
+  Offset _along(Offset from, double deg, double length) {
+    final h = deg * math.pi / 180.0;
+    return Offset(
+        from.dx + math.cos(h) * length, from.dy - math.sin(h) * length);
+  }
+
+  void _limb(Canvas canvas, Offset a, Offset b, double width, Color color) {
+    canvas.drawLine(
+        a,
+        b,
+        Paint()
+          ..strokeWidth = width
+          ..strokeCap = StrokeCap.round
+          ..color = color);
   }
 
   @override

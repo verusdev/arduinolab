@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/circuit.dart';
 import '../../models/component_type.dart';
+import '../../models/geometry.dart';
 import '../../state/app_state.dart';
 import 'component_painter.dart';
 import 'component_visual.dart';
@@ -13,8 +14,8 @@ import 'component_visual.dart';
 class CanvasView extends StatelessWidget {
   const CanvasView({super.key});
 
-  static const double canvasWidth = 2400;
-  static const double canvasHeight = 1600;
+  static const double canvasWidth = kWorkspaceWidth;
+  static const double canvasHeight = kWorkspaceHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -312,6 +313,10 @@ class _ComponentNode extends StatelessWidget {
         ? app.pendingWire?.pinId
         : null;
     final hit = _pinHitSize(component.type);
+    // A car that is driving is positioned by the physics each frame, so letting
+    // the user drag or rotate it would just fight the simulation.
+    final driving =
+        app.running && component.type == ComponentType.robotCar;
 
     return Positioned(
       left: component.x,
@@ -329,10 +334,14 @@ class _ComponentNode extends StatelessWidget {
                   component.id, !app.isButtonPressed(component.id));
             }
           },
-          onDoubleTap: () => app.rotateComponent(component.id),
+          onDoubleTap:
+              driving ? null : () => app.rotateComponent(component.id),
           onLongPress: () => app.deleteComponent(component.id),
-          onPanUpdate: (details) => app.moveComponent(component.id,
-              component.x + details.delta.dx, component.y + details.delta.dy),
+          onPanUpdate: driving
+              ? null
+              : (details) => app.moveComponent(component.id,
+                  component.x + details.delta.dx,
+                  component.y + details.delta.dy),
           child: Stack(
             clipBehavior: Clip.none,
             children: [

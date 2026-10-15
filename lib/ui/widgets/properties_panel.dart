@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../engine/robotics.dart';
 import '../../models/circuit.dart';
 import '../../models/component_type.dart';
 import '../../models/pin.dart';
@@ -213,6 +214,41 @@ class PropertiesPanel extends StatelessWidget {
         app.setProperty(component.id, key, value);
 
     switch (component.type) {
+      case ComponentType.robotCar:
+        final auto = (component.properties['autoDistance'] as bool?) ?? true;
+        final d = (component.properties['distance'] as num?)?.toDouble() ?? 100;
+        final commands = readRigCommands(app.engine, component);
+        return [
+          SwitchListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Wall sensor',
+                style: TextStyle(fontSize: 13)),
+            subtitle: const Text('Reads the distance ahead automatically',
+                style: TextStyle(fontSize: 11)),
+            value: auto,
+            onChanged: (v) => setProp('autoDistance', v),
+          ),
+          if (!auto)
+            _slider('Distance', '${d.round()} cm', d, 2, 400,
+                (v) => setProp('distance', v)),
+          const Divider(height: 20),
+          _stat('Left / right drive',
+              '${_percent(commands.left)} / ${_percent(commands.right)}'),
+          _stat('Heading', '${component.rotation.round() % 360}°'),
+          _stat('Sensor reads', '${d.round()} cm'),
+        ];
+      case ComponentType.robotArm:
+        final joints = readRigCommands(app.engine, component).joints;
+        return [
+          const Text('Drive the joints with "servo write" blocks.',
+              style: TextStyle(fontSize: 12, color: Colors.black54)),
+          const Divider(height: 20),
+          _stat('Base', '${joints[0].round()}°'),
+          _stat('Shoulder', '${joints[1].round()}°'),
+          _stat('Elbow', '${joints[2].round()}°'),
+          _stat('Gripper', '${_percent(joints[3] / 180.0)} open'),
+        ];
       case ComponentType.pushButton:
         return [
           SwitchListTile(
@@ -308,6 +344,24 @@ class PropertiesPanel extends StatelessWidget {
         ];
     }
   }
+
+  /// Read-only telemetry row.
+  Widget _stat(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 1),
+      child: Row(
+        children: [
+          Text(label, style: const TextStyle(fontSize: 12)),
+          const Spacer(),
+          Text(value,
+              style: const TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
+  static String _percent(double value) => '${(value * 100).round()}%';
 
   Widget _slider(String label, String valueText, double value, double min,
       double max, ValueChanged<double> onChanged) {

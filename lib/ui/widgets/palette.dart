@@ -36,6 +36,10 @@ class Palette extends StatelessWidget {
         return Icons.thermostat;
       case ComponentType.photoresistor:
         return Icons.brightness_6;
+      case ComponentType.robotCar:
+        return Icons.directions_car;
+      case ComponentType.robotArm:
+        return Icons.precision_manufacturing;
     }
   }
 
