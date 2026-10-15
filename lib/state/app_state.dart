@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 
 import '../blocks/block_catalog.dart';
 import '../blocks/block_model.dart';
+import '../blocks/sketch_parser.dart';
+import '../blocks/sketch_printer.dart';
 import '../core/ids.dart';
 import '../engine/robotics.dart';
 import '../engine/simulation_engine.dart';
@@ -225,6 +227,7 @@ class AppState extends ChangeNotifier {
       if (parent == null) return;
       (intoElse ? parent.elseBody : parent.body).add(block);
     }
+    _sketchFollowsBlocks();
     selectedBlockId = block.id;
     _kick();
   }
@@ -233,6 +236,7 @@ class AppState extends ChangeNotifier {
     if (!_removeBlock(project.program.setup, id)) {
       _removeBlock(project.program.loop, id);
     }
+    _sketchFollowsBlocks();
     if (selectedBlockId == id) selectedBlockId = null;
     _kick();
   }
@@ -242,6 +246,7 @@ class AppState extends ChangeNotifier {
         _findBlock(project.program.loop, blockId);
     if (block == null) return;
     block.params[key] = value;
+    _sketchFollowsBlocks();
     _kick();
   }
 
@@ -249,6 +254,7 @@ class AppState extends ChangeNotifier {
     for (final list in [project.program.setup, project.program.loop]) {
       if (_moveInList(list, id, delta)) break;
     }
+    _sketchFollowsBlocks();
     _kick();
   }
 
@@ -293,6 +299,76 @@ class AppState extends ChangeNotifier {
   void setSection(BlockSection section) {
     activeSection = section;
     _kick();
+  }
+
+  // ------------------------------------------------------------ sketch code
+
+  /// The code the editor holds when it does not fit the blocks, or null while
+  /// the two agree.
+  ///
+  /// Typing is not a commit: a sketch only half written, or one that uses C++
+  /// the blocks cannot express, is kept here so the next keystroke does not
+  /// throw the user's work away.
+  String? _typed;
+
+  /// Why the last edit was not turned into blocks.
+  List<SketchError> _sketchErrors = const [];
+
+  /// The sketch the editor shows: the blocks printed out, except while the user
+  /// is ahead of them.
+  String get sketchText => _typed ?? SketchPrinter.print(project.program);
+
+  /// What stopped the last edit from becoming blocks; empty while the two
+  /// agree.
+  List<SketchError> get sketchErrors => _sketchErrors;
+
+  /// True while the editor holds code the blocks do not describe.
+  bool get sketchAhead => _typed != null;
+
+  /// Reads [text] and, when it says something the blocks can hold, replaces the
+  /// program with it.
+  ///
+  /// When it does not, the blocks are left exactly as they were — a program the
+  /// sketch only half explains is worse than the last one that made sense — and
+  /// the reasons wait in [sketchErrors] for the editor to show.
+  void updateSketch(String text) {
+    final result = SketchParser.parse(text);
+    final parsed = result.program;
+    if (parsed == null) {
+      _typed = text;
+      _sketchErrors = result.errors;
+      _kick();
+      return;
+    }
+    _typed = null;
+    _sketchErrors = const [];
+    _adoptProgram(parsed);
+    _kick();
+  }
+
+  /// Drops whatever was typed and writes the blocks out again.
+  void rebuildSketch() {
+    _typed = null;
+    _sketchErrors = const [];
+    _kick();
+  }
+
+  /// Moves the parsed program into the project in place, the way the block
+  /// editor's own edits do, so every existing reference keeps pointing at it.
+  void _adoptProgram(BlockProgram parsed) {
+    project.program.setup
+      ..clear()
+      ..addAll(parsed.setup);
+    project.program.loop
+      ..clear()
+      ..addAll(parsed.loop);
+  }
+
+  /// Called after an edit that came from the blocks: the code is written out
+  /// from them, so an edit they could not follow is let go.
+  void _sketchFollowsBlocks() {
+    _typed = null;
+    _sketchErrors = const [];
   }
 
   // ------------------------------------------------------------- simulation
@@ -416,6 +492,7 @@ class AppState extends ChangeNotifier {
   void replaceProject(Project next) {
     stop();
     _spawns.clear();
+    _sketchFollowsBlocks();
     project = next;
     engine =
         SimulationEngine(circuit: project.circuit, program: project.program);

@@ -6,12 +6,12 @@ import '../i18n/strings.dart';
 import '../state/app_state.dart';
 import 'canvas/canvas_view.dart';
 import 'widgets/block_editor.dart';
-import 'widgets/code_preview.dart';
 import 'widgets/examples_dialog.dart';
 import 'widgets/language_button.dart';
 import 'widgets/palette.dart';
 import 'widgets/properties_panel.dart';
 import 'widgets/serial_monitor.dart';
+import 'widgets/sketch_editor.dart';
 
 /// Root screen. Adapts between a three-pane desktop layout and a stacked
 /// mobile layout.
@@ -247,7 +247,7 @@ class _HomeScreenState extends State<HomeScreen>
             controller: _tabs,
             children: const [
               BlockEditor(),
-              CodePreview(),
+              SketchEditor(),
               SerialMonitor(),
               PropertiesPanel(),
             ],

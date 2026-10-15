@@ -264,10 +264,30 @@ class S {
     'val.digitalRead': 'digitalRead',
     'val.millis': 'millis',
 
-    // Sketch preview.
-    'sketch.title': 'Generated sketch',
+    // Sketch editor.
+    'sketch.title': 'Sketch',
     'sketch.copy': 'Copy',
     'sketch.copied': 'Sketch copied',
+    'sketch.rebuild': 'Rebuild from blocks',
+    'sketch.hint': 'Write the sketch here — the blocks follow along',
+    'sketch.errors': 'Problems: {count} — the blocks were left as they were',
+    'sketch.line': 'Line {line}',
+
+    // Why a stretch of sketch could not be turned into blocks.
+    'parse.noSections': 'no setup() or loop() to read',
+    'parse.unknownStatement': 'there is no block for this statement',
+    'parse.unknownFunction': 'there is no block for this function',
+    'parse.expectedToken': 'the statement is unfinished',
+    'parse.unexpectedToken': 'stray text outside any statement',
+    'parse.badDelay': 'a wait needs a plain number of milliseconds',
+    'parse.badFor': 'only a "repeat N times" loop has a block',
+    'parse.badWhile': 'only a "forever" loop (while true) has a block',
+    'parse.badCondition': 'the condition could not be read',
+    'parse.badExpression': 'the expression could not be read',
+    'parse.badPin': 'this is not a pin',
+    'parse.badValue': 'this value is not accepted here',
+    'parse.badName': 'this is not a name',
+    'parse.unterminated': 'the sketch ends before the block is closed',
 
     // Serial monitor.
     'serial.title': 'Serial monitor',
@@ -657,9 +677,28 @@ class S {
     'val.millis': 'millis',
 
     // Sketch preview.
-    'sketch.title': 'Сгенерированный скетч',
+    'sketch.title': 'Скетч',
     'sketch.copy': 'Копировать',
     'sketch.copied': 'Скетч скопирован',
+    'sketch.rebuild': 'Пересобрать из блоков',
+    'sketch.hint': 'Пишите скетч здесь — блоки подстроятся',
+    'sketch.errors': 'Проблем: {count} — блоки оставлены как были',
+    'sketch.line': 'Строка {line}',
+
+    'parse.noSections': 'нет ни setup(), ни loop()',
+    'parse.unknownStatement': 'для этой строки нет блока',
+    'parse.unknownFunction': 'для этой функции нет блока',
+    'parse.expectedToken': 'строка не закончена',
+    'parse.unexpectedToken': 'лишний текст вне строки',
+    'parse.badDelay': 'задержке нужно обычное число миллисекунд',
+    'parse.badFor': 'блок есть только у цикла «повторить N раз»',
+    'parse.badWhile': 'блок есть только у цикла «всегда» (while true)',
+    'parse.badCondition': 'не удалось прочитать условие',
+    'parse.badExpression': 'не удалось прочитать выражение',
+    'parse.badPin': 'это не пин',
+    'parse.badValue': 'здесь такое значение не принимается',
+    'parse.badName': 'это не имя',
+    'parse.unterminated': 'скетч обрывается до закрытия блока',
 
     // Serial monitor.
     'serial.title': 'Монитор порта',
