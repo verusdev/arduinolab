@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import 'package:arduino_lab/engine/robotics.dart';
+import 'package:arduino_lab/i18n/app_lang.dart';
+import 'package:arduino_lab/i18n/strings.dart';
 import 'package:arduino_lab/main.dart';
 import 'package:arduino_lab/examples/examples.dart';
 import 'package:arduino_lab/models/circuit.dart';
@@ -12,6 +14,10 @@ import 'package:arduino_lab/ui/widgets/palette.dart';
 import 'package:arduino_lab/ui/widgets/properties_panel.dart';
 
 void main() {
+  // The interface ships in Russian by default; these tests assert the English
+  // wording, so they pin the language for the whole file.
+  setUp(() => S.set(AppLang.en));
+
   testWidgets('app boots into the workspace', (tester) async {
     tester.view.physicalSize = const Size(1600, 900);
     tester.view.devicePixelRatio = 1.0;

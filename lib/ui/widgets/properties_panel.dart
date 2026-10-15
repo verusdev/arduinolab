@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../engine/robotics.dart';
+import '../../i18n/strings.dart';
 import '../../models/circuit.dart';
 import '../../models/component_type.dart';
 import '../../models/pin.dart';
@@ -23,26 +24,30 @@ class PropertiesPanel extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       children: [
         if (component == null)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Nothing selected.',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                  S.t('inspector.nothingSelected'),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
-                SizedBox(height: 6),
+                const SizedBox(height: 6),
                 Text(
-                  'Tap a part to inspect it. Its pin names are printed on the '
-                  'canvas — tap one pin, then another pin, to draw a wire '
-                  'between them.',
-                  style: TextStyle(color: Colors.black54, fontSize: 12),
+                  S.t('inspector.nothingSelectedHint'),
+                  style: const TextStyle(color: Colors.black54, fontSize: 12),
                 ),
-                SizedBox(height: 10),
-                _Shortcut(label: 'Double-tap', text: 'rotate the part'),
-                _Shortcut(label: 'Long-press', text: 'delete the part'),
-                _Shortcut(label: 'Drag', text: 'move the part'),
+                const SizedBox(height: 10),
+                _Shortcut(
+                    label: S.t('inspector.sc.doubleTap'),
+                    text: S.t('inspector.sc.doubleTapText')),
+                _Shortcut(
+                    label: S.t('inspector.sc.longPress'),
+                    text: S.t('inspector.sc.longPressText')),
+                _Shortcut(
+                    label: S.t('inspector.sc.drag'),
+                    text: S.t('inspector.sc.dragText')),
               ],
             ),
           )
@@ -50,16 +55,16 @@ class PropertiesPanel extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(component.spec.label,
+                child: Text(S.t('component.${component.type.name}'),
                     style: Theme.of(context).textTheme.titleMedium),
               ),
               IconButton(
-                tooltip: 'Rotate 90°',
+                tooltip: S.t('inspector.rotate90'),
                 icon: const Icon(Icons.rotate_90_degrees_cw),
                 onPressed: () => app.rotateComponent(component.id),
               ),
               IconButton(
-                tooltip: 'Delete',
+                tooltip: S.t('common.delete'),
                 icon: const Icon(Icons.delete_outline),
                 onPressed: () => app.deleteComponent(component.id),
               ),
@@ -70,18 +75,20 @@ class PropertiesPanel extends StatelessWidget {
           const SizedBox(height: 8),
           ..._controls(context, app, component),
           const Divider(height: 24),
-          Text('Connections (${component.spec.pins.length})',
+          Text(
+              S.t('inspector.connections',
+                  {'n': component.spec.pins.length}),
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
           const SizedBox(height: 2),
-          const Text('Tap a pin to start a wire from it.',
-              style: TextStyle(fontSize: 11, color: Colors.black45)),
+          Text(S.t('inspector.pinHint'),
+              style: const TextStyle(fontSize: 11, color: Colors.black45)),
           const SizedBox(height: 6),
           for (final pin in component.spec.pins) _pinTile(app, component, pin),
           const Divider(height: 24),
         ],
         if (warnings.isNotEmpty) ...[
-          const Text('Warnings',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          Text(S.t('inspector.warnings'),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
           const SizedBox(height: 6),
           for (final w in warnings)
             Card(
@@ -95,12 +102,13 @@ class PropertiesPanel extends StatelessWidget {
             ),
           const Divider(height: 24),
         ],
-        Text('Wires (${app.project.circuit.wires.length})',
+        Text(
+            S.t('inspector.wires', {'n': app.project.circuit.wires.length}),
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
         const SizedBox(height: 4),
         if (app.project.circuit.wires.isEmpty)
-          const Text('No wires yet.',
-              style: TextStyle(fontSize: 12, color: Colors.black45))
+          Text(S.t('inspector.noWires'),
+              style: const TextStyle(fontSize: 12, color: Colors.black45))
         else
           for (final w in app.project.circuit.wires) _wireTile(app, w),
       ],
@@ -136,7 +144,7 @@ class PropertiesPanel extends StatelessWidget {
         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
       ),
       subtitle: Text(
-        connected ? targets.join('\n') : 'Not connected',
+        connected ? targets.join('\n') : S.t('inspector.notConnected'),
         style: TextStyle(
           fontSize: 11,
           color: connected ? Colors.black87 : Colors.black38,
@@ -154,13 +162,18 @@ class PropertiesPanel extends StatelessWidget {
   /// Labels of everything wired to [pin], e.g. `→ Arduino UNO · D7`.
   List<String> _connections(AppState app, PlacedComponent c, Pin pin) {
     final out = <String>[];
+    String label(String? componentId) {
+      final other = componentId == null
+          ? null
+          : app.project.circuit.componentById(componentId);
+      return other == null ? '?' : S.t('component.${other.type.name}');
+    }
+
     for (final wire in app.project.circuit.wires) {
       if (wire.aComponent == c.id && wire.aPin == pin.id) {
-        final other = app.project.circuit.componentById(wire.bComponent);
-        out.add('→ ${other?.spec.label ?? '?'} · ${wire.bPin}');
+        out.add('→ ${label(wire.bComponent)} · ${wire.bPin}');
       } else if (wire.bComponent == c.id && wire.bPin == pin.id) {
-        final other = app.project.circuit.componentById(wire.aComponent);
-        out.add('→ ${other?.spec.label ?? '?'} · ${wire.aPin}');
+        out.add('→ ${label(wire.aComponent)} · ${wire.aPin}');
       }
     }
     return out;
@@ -188,17 +201,18 @@ class PropertiesPanel extends StatelessWidget {
   Widget _wireTile(AppState app, Wire wire) {
     final a = app.project.circuit.componentById(wire.aComponent);
     final b = app.project.circuit.componentById(wire.bComponent);
+    String label(PlacedComponent? c) =>
+        c == null ? '?' : S.t('component.${c.type.name}');
     return ListTile(
       dense: true,
       contentPadding: EdgeInsets.zero,
       leading: Icon(Icons.cable, size: 18, color: Color(wire.color)),
       title: Text(
-        '${a?.spec.label ?? '?'} .${wire.aPin}  →  '
-        '${b?.spec.label ?? '?'} .${wire.bPin}',
+        '${label(a)} .${wire.aPin}  →  ${label(b)} .${wire.bPin}',
         style: const TextStyle(fontSize: 12),
       ),
       trailing: IconButton(
-        tooltip: 'Delete wire',
+        tooltip: S.t('inspector.deleteWire'),
         icon: const Icon(Icons.close, size: 16),
         onPressed: () {
           app.selectWire(wire.id);
@@ -220,46 +234,43 @@ class PropertiesPanel extends StatelessWidget {
         final behind =
             (component.properties['distanceBehind'] as num?)?.toDouble() ?? 100;
         final commands = readRigCommands(app.engine, component);
-        const wheelNames = [
-          'M1 front-left',
-          'M2 front-right',
-          'M3 rear-left',
-          'M4 rear-right',
+        final wheelNames = [
+          S.t('car.wheel1'),
+          S.t('car.wheel2'),
+          S.t('car.wheel3'),
+          S.t('car.wheel4'),
         ];
         return [
           SwitchListTile(
             dense: true,
             contentPadding: EdgeInsets.zero,
-            title: const Text('Wall sensors',
-                style: TextStyle(fontSize: 13)),
-            subtitle: const Text(
-                'The front and rear rangefinders track the walls themselves',
-                style: TextStyle(fontSize: 11)),
+            title: Text(S.t('car.wallSensors'),
+                style: const TextStyle(fontSize: 13)),
+            subtitle: Text(S.t('car.wallSensorsHint'),
+                style: const TextStyle(fontSize: 11)),
             value: auto,
             onChanged: (v) => setProp('autoDistance', v),
           ),
           if (!auto) ...[
-            _slider('Distance ahead', '${ahead.round()} cm', ahead, 2, 400,
-                (v) => setProp('distance', v)),
-            _slider('Distance behind', '${behind.round()} cm', behind, 2, 400,
-                (v) => setProp('distanceBehind', v)),
+            _slider(S.t('car.distanceAhead'), '${ahead.round()} cm', ahead, 2,
+                400, (v) => setProp('distance', v)),
+            _slider(S.t('car.distanceBehind'), '${behind.round()} cm', behind, 2,
+                400, (v) => setProp('distanceBehind', v)),
           ],
           const Divider(height: 20),
           for (var i = 0; i < 4; i++)
             _stat(wheelNames[i], _percent(commands.wheels[i])),
-          _stat('Heading', '${component.rotation.round() % 360}°'),
-          _stat('Sensor ahead', '${ahead.round()} cm'),
-          _stat('Sensor behind', '${behind.round()} cm'),
+          _stat(S.t('car.heading'), '${component.rotation.round() % 360}°'),
+          _stat(S.t('car.sensorAhead'), '${ahead.round()} cm'),
+          _stat(S.t('car.sensorBehind'), '${behind.round()} cm'),
         ];
       case ComponentType.robotArm:
         final segments = armSegmentCount(component);
         final angles = readArmJoints(app.engine, component);
         return [
-          const Text(
-              'Fit a servo to the joints you want to drive; every other joint '
-              'holds the angle you dial in by hand.',
-              style: TextStyle(fontSize: 12, color: Colors.black54)),
-          _slider('Segments', '$segments', segments.toDouble(), 2, 6,
+          Text(S.t('arm.hint'),
+              style: const TextStyle(fontSize: 12, color: Colors.black54)),
+          _slider(S.t('arm.segments'), '$segments', segments.toDouble(), 2, 6,
               (v) => setProp('segments', v.round()),
               divisions: 4),
           const Divider(height: 20),
@@ -268,22 +279,24 @@ class PropertiesPanel extends StatelessWidget {
               dense: true,
               contentPadding: EdgeInsets.zero,
               title: Text(
-                  j == segments ? 'J$j · gripper servo' : 'J$j · servo',
+                  j == segments
+                      ? S.t('arm.jointGripper', {'n': j})
+                      : S.t('arm.jointServo', {'n': j}),
                   style: const TextStyle(fontSize: 13)),
               subtitle: Text(
                   j == segments
-                      ? 'Opens and closes the jaws'
-                      : 'Drives segment $j off pin J$j',
+                      ? S.t('arm.jointGripperSub')
+                      : S.t('arm.jointSub', {'n': j}),
                   style: const TextStyle(fontSize: 11)),
               value: armJointFitted(component, j),
               onChanged: (v) => setProp('servoJ$j', v),
             ),
             if (armJointFitted(component, j))
-              _stat('J$j commanded',
+              _stat(S.t('arm.jointCommanded', {'n': j}),
                   '${(j <= angles.length ? angles[j - 1] : 90).round()}°')
             else
               _slider(
-                  'J$j rest angle',
+                  S.t('arm.jointRest', {'n': j}),
                   '${((component.properties['restJ$j'] as num?)?.toDouble() ?? 90).round()}°',
                   (component.properties['restJ$j'] as num?)?.toDouble() ?? 90,
                   0,
@@ -299,24 +312,29 @@ class PropertiesPanel extends StatelessWidget {
         final host = parent == null
             ? null
             : app.project.circuit.componentById(parent);
-        const roles = {
-          ComponentType.armBase:
-              'Pedestal. Bolt a servo or a link onto the socket on top.',
-          ComponentType.armLink:
-              'One segment. Its foot swings on whatever it is bolted to.',
-          ComponentType.armGripper:
-              'Jaws. Bolt a servo onto its socket to open and close them.',
+        final roles = {
+          ComponentType.armBase: S.t('arm.roleBase'),
+          ComponentType.armLink: S.t('arm.roleLink'),
+          ComponentType.armGripper: S.t('arm.roleGripper'),
         };
         return [
           Text(roles[component.type]!,
               style: const TextStyle(fontSize: 12, color: Colors.black54)),
           const Divider(height: 20),
-          _stat('Bolted to', host?.spec.label ?? 'nothing yet'),
-          _stat('Angle', '${component.rotation.round() % 360}°'),
+          _stat(
+              S.t('arm.boltedTo'),
+              host == null
+                  ? S.t('arm.nothing')
+                  : S.t('component.${host.type.name}')),
+          _stat(S.t('arm.angle'), '${component.rotation.round() % 360}°'),
           if (component.type == ComponentType.armGripper)
             _stat(
-                'Jaws',
-                '${_percent((component.properties['openness'] as num?)?.toDouble() ?? 0)} open'),
+                S.t('arm.jaws'),
+                S.t('arm.jawsOpen', {
+                  'value': _percent(
+                      (component.properties['openness'] as num?)?.toDouble() ??
+                          0),
+                })),
           const SizedBox(height: 8),
           Align(
             alignment: Alignment.centerLeft,
@@ -325,7 +343,7 @@ class PropertiesPanel extends StatelessWidget {
                   ? null
                   : () => app.detachArmPart(component.id),
               icon: const Icon(Icons.link_off, size: 16),
-              label: const Text('Unbolt'),
+              label: Text(S.t('arm.unbolt')),
             ),
           ),
         ];
@@ -334,7 +352,7 @@ class PropertiesPanel extends StatelessWidget {
           SwitchListTile(
             dense: true,
             contentPadding: EdgeInsets.zero,
-            title: const Text('Pressed', style: TextStyle(fontSize: 13)),
+            title: Text(S.t('prop.pressed'), style: const TextStyle(fontSize: 13)),
             value: app.isButtonPressed(component.id),
             onChanged: (v) => app.setButtonPressed(component.id, v),
           ),
@@ -342,8 +360,8 @@ class PropertiesPanel extends StatelessWidget {
       case ComponentType.resistor:
         final r = (component.properties['resistance'] as num?)?.toDouble() ?? 220;
         return [
-          _slider('Resistance', '${r.toInt()} Ω', r.clamp(10, 10000), 10, 10000,
-              (v) => setProp('resistance', v.roundToDouble())),
+          _slider(S.t('prop.resistance'), '${r.toInt()} Ω', r.clamp(10, 10000),
+              10, 10000, (v) => setProp('resistance', v.roundToDouble())),
           Wrap(
             spacing: 6,
             children: [
@@ -358,36 +376,36 @@ class PropertiesPanel extends StatelessWidget {
       case ComponentType.potentiometer:
         final p = (component.properties['position'] as num?)?.toDouble() ?? 0.5;
         return [
-          _slider('Knob', '${(p * 100).round()}%', p, 0, 1,
+          _slider(S.t('prop.knob'), '${(p * 100).round()}%', p, 0, 1,
               (v) => setProp('position', v)),
         ];
       case ComponentType.photoresistor:
         final l = (component.properties['light'] as num?)?.toDouble() ?? 0.5;
         return [
-          _slider('Light level', '${(l * 100).round()}%', l, 0, 1,
+          _slider(S.t('prop.lightLevel'), '${(l * 100).round()}%', l, 0, 1,
               (v) => setProp('light', v)),
         ];
       case ComponentType.ultrasonic:
         final d = (component.properties['distance'] as num?)?.toDouble() ?? 100;
         return [
-          _slider('Distance', '${d.round()} cm', d, 2, 400,
+          _slider(S.t('prop.distance'), '${d.round()} cm', d, 2, 400,
               (v) => setProp('distance', v)),
         ];
       case ComponentType.dht11:
         final t = (component.properties['temperature'] as num?)?.toDouble() ?? 24;
         final h = (component.properties['humidity'] as num?)?.toDouble() ?? 50;
         return [
-          _slider('Temperature', '${t.toStringAsFixed(1)} °C', t, -10, 50,
-              (v) => setProp('temperature', v)),
-          _slider('Humidity', '${h.round()} %', h, 0, 100,
+          _slider(S.t('prop.temperature'), '${t.toStringAsFixed(1)} °C', t, -10,
+              50, (v) => setProp('temperature', v)),
+          _slider(S.t('prop.humidity'), '${h.round()} %', h, 0, 100,
               (v) => setProp('humidity', v)),
         ];
       case ComponentType.led:
         final color = (component.properties['color'] as int?) ?? 0xFFFF3B30;
         return [
-          const Padding(
-            padding: EdgeInsets.only(top: 4, bottom: 4),
-            child: Text('Colour', style: TextStyle(fontSize: 13)),
+          Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 4),
+            child: Text(S.t('prop.colour'), style: const TextStyle(fontSize: 13)),
           ),
           Wrap(
             spacing: 8,
@@ -418,9 +436,9 @@ class PropertiesPanel extends StatelessWidget {
           ),
         ];
       default:
-        return const [
-          Text('No adjustable properties.',
-              style: TextStyle(fontSize: 12, color: Colors.black45)),
+        return [
+          Text(S.t('inspector.noProperties'),
+              style: const TextStyle(fontSize: 12, color: Colors.black45)),
         ];
     }
   }

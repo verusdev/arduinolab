@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../models/circuit.dart';
 import '../../models/component_type.dart';
 import '../../models/pin.dart';
+import '../../i18n/strings.dart';
 import 'component_visual.dart';
 import '../../engine/robotics.dart';
 
@@ -235,9 +236,9 @@ class ComponentPainter extends CustomPainter {
         size: 16, weight: FontWeight.bold, align: TextAlign.center);
     _label(canvas, 'UNO', Offset(size.width / 2, size.height / 2),
         size: 14, align: TextAlign.center);
-    _label(canvas, 'DIGITAL', const Offset(2, 2),
+    _label(canvas, S.t('silk.digital'), const Offset(2, 2),
         size: 7, color: const Color(0xFFBFE3EA));
-    _label(canvas, 'ANALOG / POWER', Offset(120, size.height - 24),
+    _label(canvas, S.t('silk.analogPower'), Offset(120, size.height - 24),
         size: 7, color: const Color(0xFFBFE3EA));
     // USB connector
     _rounded(canvas, const Rect.fromLTWH(-6, 44, 14, 34),
@@ -552,7 +553,7 @@ class ComponentPainter extends CustomPainter {
     }
 
     _carHeading(canvas, size, midY);
-    _label(canvas, 'ROBOT CAR 4WD', Offset(w / 2, 44),
+    _label(canvas, S.t('silk.robotCar'), Offset(w / 2, 44),
         size: 6.5, color: const Color(0xFFCFD8DC), align: TextAlign.center);
   }
 
@@ -668,7 +669,7 @@ class ComponentPainter extends CustomPainter {
           const Color(0xFFB0BEC5));
     }
 
-    _label(canvas, 'ROBOT ARM', const Offset(4, 2),
+    _label(canvas, S.t('silk.robotArm'), const Offset(4, 2),
         size: 6.5, color: const Color(0xFFB0BEC5));
   }
 
@@ -690,7 +691,7 @@ class ComponentPainter extends CustomPainter {
         ..color = const Color(0xFF263238),
     );
     _socketMark(canvas, Offset(mount.socketX!, mount.socketY!));
-    _label(canvas, 'BASE', Offset(size.width / 2, size.height - 20),
+    _label(canvas, S.t('silk.base'), Offset(size.width / 2, size.height - 20),
         size: 6.5, color: const Color(0xFFCFD8DC), align: TextAlign.center);
   }
 

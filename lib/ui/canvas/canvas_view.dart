@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../engine/robotics.dart';
+import '../../i18n/strings.dart';
 import '../../models/circuit.dart';
 import '../../models/component_type.dart';
 import '../../models/geometry.dart';
@@ -214,19 +215,20 @@ class _WiringHint extends StatelessWidget {
     final pending = app.pendingWire;
 
     if (pending == null) {
-      return const _HintCard(
+      return _HintCard(
         icon: Icons.ads_click,
-        title: 'Tap a pin, then tap another pin to draw a wire',
-        subtitle: 'Double-tap a part to rotate · long-press to delete',
+        title: S.t('canvas.hintTitle'),
+        subtitle: S.t('canvas.hintSubtitle'),
       );
     }
 
     final component = app.project.circuit.componentById(pending.componentId);
+    final name =
+        component == null ? '?' : S.t('component.${component.type.name}');
     return _HintCard(
       icon: Icons.cable,
-      title: 'From ${component?.spec.label ?? '?'} · ${pending.pinId}'
-          ' — now tap the target pin',
-      subtitle: 'Orange pins are ready to connect · tap it again to cancel',
+      title: S.t('canvas.wireTitle', {'name': name, 'pin': pending.pinId}),
+      subtitle: S.t('canvas.wireSubtitle'),
       highlight: true,
       onCancel: app.cancelWire,
     );
@@ -284,7 +286,7 @@ class _HintCard extends StatelessWidget {
               ),
               if (onCancel != null)
                 IconButton(
-                  tooltip: 'Cancel wire',
+                  tooltip: S.t('canvas.cancelWire'),
                   visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.close, size: 16),
                   onPressed: onCancel,

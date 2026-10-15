@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import '../i18n/strings.dart';
 import '../models/circuit.dart';
 import '../models/component_type.dart';
 import '../models/pin.dart';
@@ -260,7 +261,7 @@ class Solver {
               ledResistance;
           ledBrightness[c.id] = (current.abs() / 0.02).clamp(0.0, 1.0);
           if (current.abs() > 0.05) {
-            warnings.add('LED ${c.id} draws too much current; add a resistor.');
+            warnings.add(S.t('warn.ledCurrent', {'id': c.id}));
           }
         case ComponentType.rgbLed:
           for (final ch in const ['R', 'G', 'B']) {
@@ -272,7 +273,7 @@ class Solver {
         case ComponentType.ultrasonic:
           final logic = logicOfNet[netlist.netOf(c.id, 'ECHO')];
           if (logic == null) {
-            warnings.add('Wire the ultrasonic ECHO pin to a digital pin.');
+            warnings.add(S.t('warn.ultrasonicEcho'));
             break;
           }
           final cm = (c.properties['distance'] as num?)?.toDouble() ?? 100;
@@ -280,7 +281,7 @@ class Solver {
         case ComponentType.dht11:
           final logic = logicOfNet[netlist.netOf(c.id, 'DATA')];
           if (logic == null) {
-            warnings.add('Wire the DHT11 DATA pin to a digital pin.');
+            warnings.add(S.t('warn.dhtData'));
             break;
           }
           dhtTemp[logic] =

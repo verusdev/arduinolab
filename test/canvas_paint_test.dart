@@ -6,6 +6,8 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
+import 'package:arduino_lab/i18n/app_lang.dart';
+import 'package:arduino_lab/i18n/strings.dart';
 import 'package:arduino_lab/models/circuit.dart';
 import 'package:arduino_lab/models/component_type.dart';
 import 'package:arduino_lab/state/app_state.dart';
@@ -41,6 +43,11 @@ bool _columnHas(ByteData data, int width, int x, int y0, int y1, Color want) {
 }
 
 void main() {
+  // The pixel samples below were taken with the English chrome, and the wiring
+  // hint that floats over the canvas takes up more room in other languages, so
+  // pin the language to keep this layering test deterministic.
+  setUp(() => S.set(AppLang.en));
+
   testWidgets('a wire is drawn on top of the board its pin lives inside',
       (tester) async {
     const w = 600;

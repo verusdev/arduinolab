@@ -18,6 +18,9 @@ class ParamDef {
       {this.options = const []});
 
   final String key;
+
+  /// Caption shown before the editor, written in English and used as the key
+  /// `par.<label>` (empty when the block needs no caption).
   final String label;
   final ParamEditor editor;
   final Object? defaultValue;
@@ -36,7 +39,12 @@ class BlockDef {
   });
 
   final BlockKind kind;
+
+  /// English display name: the reference wording for translators. The editor
+  /// shows the translation under the `blk.<kind.name>` key instead.
   final String label;
+
+  /// English grouping, kept as a stable key; shown as `blockcat.<value>`.
   final String category;
   final List<ParamDef> params;
   final bool hasBody;

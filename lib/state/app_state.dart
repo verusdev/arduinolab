@@ -8,6 +8,7 @@ import '../core/ids.dart';
 import '../engine/robotics.dart';
 import '../engine/simulation_engine.dart';
 import '../examples/examples.dart';
+import '../i18n/strings.dart';
 import '../models/circuit.dart';
 import '../models/component_type.dart';
 import '../models/geometry.dart';
@@ -33,7 +34,7 @@ class AppState extends ChangeNotifier {
 
   final StorageService storage = StorageService();
 
-  Project project = Project(name: 'New project');
+  Project project = Project(name: S.t('project.new'));
   late SimulationEngine engine;
 
   Timer? _timer;
@@ -298,11 +299,11 @@ class AppState extends ChangeNotifier {
 
   void run() {
     if (project.program.isEmpty) {
-      setMessage('Add blocks to your program first.');
+      setMessage(S.t('msg.addBlocks'));
       return;
     }
     if (!project.circuit.hasArduino) {
-      setMessage('Place an Arduino UNO on the board to run.');
+      setMessage(S.t('msg.placeArduino'));
       return;
     }
     engine.setCircuit(project.circuit);
@@ -429,8 +430,8 @@ class AppState extends ChangeNotifier {
   }
 
   void newProject() {
-    replaceProject(Project(name: 'New project'));
-    setMessage('New project created.');
+    replaceProject(Project(name: S.t('project.new')));
+    setMessage(S.t('msg.newProject'));
   }
 
   void renameProject(String name) {
@@ -442,22 +443,24 @@ class AppState extends ChangeNotifier {
     final example = Examples.byId(id);
     if (example == null) return;
     replaceProject(example.build());
-    setMessage('Loaded example "${example.title}".');
+    // Name the loaded project after the lesson, in the active language.
+    project.name = S.t('lesson.${example.id}.title');
+    setMessage(S.t('msg.loadedExample', {'title': project.name}));
   }
 
   Future<void> saveToSlot(String slot) async {
     await storage.save(slot, project);
-    setMessage('Saved to slot "$slot".');
+    setMessage(S.t('msg.savedSlot', {'slot': slot}));
   }
 
   Future<void> openFromSlot(String slot) async {
     final loaded = await storage.load(slot);
     if (loaded == null) {
-      setMessage('Slot "$slot" is empty.');
+      setMessage(S.t('msg.slotEmpty', {'slot': slot}));
       return;
     }
     replaceProject(loaded);
-    setMessage('Opened slot "$slot".');
+    setMessage(S.t('msg.openedSlot', {'slot': slot}));
   }
 
   String exportJson() => storage.encode(project);
@@ -465,9 +468,9 @@ class AppState extends ChangeNotifier {
   void importJson(String raw) {
     try {
       replaceProject(storage.decode(raw));
-      setMessage('Project imported.');
+      setMessage(S.t('msg.imported'));
     } catch (e) {
-      setMessage('Import failed: $e');
+      setMessage(S.t('msg.importFailed', {'error': e}));
     }
   }
 

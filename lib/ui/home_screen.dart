@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../i18n/strings.dart';
 import '../state/app_state.dart';
 import 'canvas/canvas_view.dart';
 import 'widgets/block_editor.dart';
 import 'widgets/code_preview.dart';
 import 'widgets/examples_dialog.dart';
+import 'widgets/language_button.dart';
 import 'widgets/palette.dart';
 import 'widgets/properties_panel.dart';
 import 'widgets/serial_monitor.dart';
@@ -89,7 +91,7 @@ class _HomeScreenState extends State<HomeScreen>
           if (!wide)
             Builder(
               builder: (ctx) => IconButton(
-                tooltip: 'Components',
+                tooltip: S.t('bar.components'),
                 icon: const Icon(Icons.menu),
                 onPressed: () => Scaffold.of(ctx).openDrawer(),
               ),
@@ -114,33 +116,34 @@ class _HomeScreenState extends State<HomeScreen>
         else
           _runButton(app),
         IconButton(
-          tooltip: 'Reset simulation',
+          tooltip: S.t('bar.resetSimulation'),
           icon: const Icon(Icons.restart_alt),
           onPressed: app.resetSimulation,
         ),
         if (wide)
           IconButton(
-            tooltip: 'Examples & lessons',
+            tooltip: S.t('bar.examples'),
             icon: const Icon(Icons.school_outlined),
             onPressed: () => showExamplesDialog(context),
           ),
+        const LanguageButton(),
         PopupMenuButton<String>(
-          tooltip: 'Project',
+          tooltip: S.t('bar.project'),
           icon: const Icon(Icons.more_vert),
           onSelected: (v) => _onMenu(v, app),
           itemBuilder: (ctx) => [
             if (!wide)
-              const PopupMenuItem(
-                  value: 'examples', child: Text('Examples & lessons')),
-            const PopupMenuItem(value: 'rename', child: Text('Rename project')),
+              PopupMenuItem(
+                  value: 'examples', child: Text(S.t('menu.examples'))),
+            PopupMenuItem(value: 'rename', child: Text(S.t('menu.rename'))),
             const PopupMenuDivider(),
-            const PopupMenuItem(value: 'save', child: Text('Save to slot...')),
-            const PopupMenuItem(value: 'open', child: Text('Open slot…')),
+            PopupMenuItem(value: 'save', child: Text(S.t('menu.saveToSlot'))),
+            PopupMenuItem(value: 'open', child: Text(S.t('menu.openSlot'))),
             const PopupMenuDivider(),
-            const PopupMenuItem(value: 'export', child: Text('Export JSON…')),
-            const PopupMenuItem(value: 'import', child: Text('Import JSON…')),
+            PopupMenuItem(value: 'export', child: Text(S.t('menu.exportJson'))),
+            PopupMenuItem(value: 'import', child: Text(S.t('menu.importJson'))),
             const PopupMenuDivider(),
-            const PopupMenuItem(value: 'new', child: Text('New project')),
+            PopupMenuItem(value: 'new', child: Text(S.t('menu.newProject'))),
           ],
         ),
       ],
@@ -151,7 +154,7 @@ class _HomeScreenState extends State<HomeScreen>
     final running = app.running;
     final enabled = running || app.canRun;
     return Tooltip(
-      message: running ? 'Stop' : 'Run',
+      message: running ? S.t('bar.stop') : S.t('bar.run'),
       child: FilledButton.icon(
         style: FilledButton.styleFrom(
           backgroundColor: running ? const Color(0xFFC62828) : null,
@@ -159,7 +162,7 @@ class _HomeScreenState extends State<HomeScreen>
         ),
         onPressed: !enabled ? null : () => running ? app.stop() : app.run(),
         icon: Icon(running ? Icons.stop : Icons.play_arrow, size: 18),
-        label: Text(running ? 'Stop' : 'Run'),
+        label: Text(running ? S.t('bar.stop') : S.t('bar.run')),
       ),
     );
   }
@@ -231,11 +234,11 @@ class _HomeScreenState extends State<HomeScreen>
           controller: _tabs,
           isScrollable: true,
           tabAlignment: TabAlignment.start,
-          tabs: const [
-            Tab(text: 'Blocks', icon: Icon(Icons.extension, size: 18)),
-            Tab(text: 'Sketch', icon: Icon(Icons.code, size: 18)),
-            Tab(text: 'Serial', icon: Icon(Icons.terminal, size: 18)),
-            Tab(text: 'Inspector', icon: Icon(Icons.tune, size: 18)),
+          tabs: [
+            Tab(text: S.t('tab.blocks'), icon: const Icon(Icons.extension, size: 18)),
+            Tab(text: S.t('tab.sketch'), icon: const Icon(Icons.code, size: 18)),
+            Tab(text: S.t('tab.serial'), icon: const Icon(Icons.terminal, size: 18)),
+            Tab(text: S.t('tab.inspector'), icon: const Icon(Icons.tune, size: 18)),
           ],
         ),
         const Divider(height: 1),
@@ -261,20 +264,20 @@ class _HomeScreenState extends State<HomeScreen>
     final name = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Rename project'),
+        title: Text(S.t('dialog.rename.title')),
         content: TextField(
           controller: controller,
           autofocus: true,
-          decoration: const InputDecoration(labelText: 'Project name'),
+          decoration: InputDecoration(labelText: S.t('dialog.rename.field')),
           onSubmitted: (v) => Navigator.of(ctx).pop(v),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancel')),
+              child: Text(S.t('common.cancel'))),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(controller.text),
-            child: const Text('Rename'),
+            child: Text(S.t('common.rename')),
           ),
         ],
       ),
@@ -288,16 +291,15 @@ class _HomeScreenState extends State<HomeScreen>
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('New project?'),
-        content:
-            const Text('Unsaved changes to the current project will be lost.'),
+        title: Text(S.t('dialog.new.title')),
+        content: Text(S.t('dialog.new.body')),
         actions: [
           TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancel')),
+              child: Text(S.t('common.cancel'))),
           FilledButton(
               onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Start new')),
+              child: Text(S.t('dialog.new.action'))),
         ],
       ),
     );
@@ -319,20 +321,21 @@ class _HomeScreenState extends State<HomeScreen>
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Save project',
+                Text(S.t('dialog.save.title'),
                     style: Theme.of(ctx).textTheme.titleMedium),
                 const SizedBox(height: 14),
                 TextField(
                   controller: controller,
                   autofocus: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Slot name',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: S.t('dialog.save.slot'),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 if (slots.isNotEmpty) ...[
                   const SizedBox(height: 16),
-                  const Text('Saved slots', style: TextStyle(fontSize: 12)),
+                  Text(S.t('dialog.save.slots'),
+                      style: const TextStyle(fontSize: 12)),
                   const SizedBox(height: 6),
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxHeight: 160),
@@ -357,11 +360,11 @@ class _HomeScreenState extends State<HomeScreen>
                   children: [
                     TextButton(
                         onPressed: () => Navigator.of(ctx).pop(),
-                        child: const Text('Cancel')),
+                        child: Text(S.t('common.cancel'))),
                     const SizedBox(width: 8),
                     FilledButton(
                       onPressed: () => Navigator.of(ctx).pop(controller.text),
-                      child: const Text('Save'),
+                      child: Text(S.t('common.save')),
                     ),
                   ],
                 ),
@@ -382,14 +385,14 @@ class _HomeScreenState extends State<HomeScreen>
     final slot = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Open project'),
+        title: Text(S.t('dialog.open.title')),
         content: SizedBox(
           width: 380,
           child: slots.isEmpty
-              ? const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Text('No saved projects yet.',
-                      style: TextStyle(color: Colors.black54)),
+              ? Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Text(S.t('dialog.open.empty'),
+                      style: const TextStyle(color: Colors.black54)),
                 )
               : ConstrainedBox(
                   constraints: const BoxConstraints(maxHeight: 320),
@@ -401,7 +404,7 @@ class _HomeScreenState extends State<HomeScreen>
                             leading: const Icon(Icons.folder_open),
                             title: Text(s),
                             trailing: IconButton(
-                              tooltip: 'Delete',
+                              tooltip: S.t('common.delete'),
                               icon: const Icon(Icons.delete_outline, size: 18),
                               onPressed: () async {
                                 await app.storage.delete(s);
@@ -419,7 +422,7 @@ class _HomeScreenState extends State<HomeScreen>
         actions: [
           TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Close')),
+              child: Text(S.t('common.close'))),
         ],
       ),
     );
@@ -431,7 +434,7 @@ class _HomeScreenState extends State<HomeScreen>
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Project JSON'),
+        title: Text(S.t('dialog.export.title')),
         content: SizedBox(
           width: 620,
           height: 400,
@@ -451,11 +454,11 @@ class _HomeScreenState extends State<HomeScreen>
               Clipboard.setData(ClipboardData(text: json));
               Navigator.of(ctx).pop();
             },
-            child: const Text('Copy'),
+            child: Text(S.t('common.copy')),
           ),
           FilledButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Close')),
+              child: Text(S.t('common.close'))),
         ],
       ),
     );
@@ -466,7 +469,7 @@ class _HomeScreenState extends State<HomeScreen>
     final submitted = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Import project JSON'),
+        title: Text(S.t('dialog.import.title')),
         content: SizedBox(
           width: 620,
           height: 400,
@@ -476,9 +479,9 @@ class _HomeScreenState extends State<HomeScreen>
             expands: true,
             textAlignVertical: TextAlignVertical.top,
             style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-            decoration: const InputDecoration(
-              hintText: 'Paste exported JSON here',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              hintText: S.t('dialog.import.hint'),
+              border: const OutlineInputBorder(),
               alignLabelWithHint: true,
             ),
           ),
@@ -486,7 +489,7 @@ class _HomeScreenState extends State<HomeScreen>
         actions: [
           TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancel')),
+              child: Text(S.t('common.cancel'))),
           FilledButton(
             onPressed: () {
               Clipboard.getData(Clipboard.kTextPlain).then((data) {
@@ -496,11 +499,11 @@ class _HomeScreenState extends State<HomeScreen>
                 }
               });
             },
-            child: const Text('Paste'),
+            child: Text(S.t('dialog.paste')),
           ),
           FilledButton(
               onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Import')),
+              child: Text(S.t('common.import'))),
         ],
       ),
     );

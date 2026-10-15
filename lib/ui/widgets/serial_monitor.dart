@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../i18n/strings.dart';
 import '../../state/app_state.dart';
 
 /// Serial monitor window.
@@ -39,11 +40,11 @@ class _SerialMonitorState extends State<SerialMonitor> {
             children: [
               const Icon(Icons.terminal, size: 18),
               const SizedBox(width: 8),
-              Text('Serial monitor',
+              Text(S.t('serial.title'),
                   style: Theme.of(context).textTheme.titleSmall),
               const Spacer(),
               IconButton(
-                tooltip: 'Clear',
+                tooltip: S.t('serial.clear'),
                 icon: const Icon(Icons.delete_outline, size: 18),
                 onPressed: () {
                   app.engine.runtime.serial.clear();
@@ -60,7 +61,7 @@ class _SerialMonitorState extends State<SerialMonitor> {
             child: SingleChildScrollView(
               controller: _controller,
               child: SelectableText(
-                text.isEmpty ? '(no output yet — press Run)' : text,
+                text.isEmpty ? S.t('serial.empty') : text,
                 style: const TextStyle(
                   fontFamily: 'monospace',
                   fontSize: 12.5,

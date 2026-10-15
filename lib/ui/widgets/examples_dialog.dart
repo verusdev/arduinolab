@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../examples/examples.dart';
+import '../../i18n/strings.dart';
 import '../../state/app_state.dart';
 
 /// Shows the built-in library of examples and lessons.
@@ -22,11 +23,11 @@ Future<void> showExamplesDialog(BuildContext context) async {
                 children: [
                   const Icon(Icons.school, color: Color(0xFF00796B)),
                   const SizedBox(width: 10),
-                  Text('Examples & lessons',
+                  Text(S.t('examples.title'),
                       style: Theme.of(ctx).textTheme.titleLarge),
                   const Spacer(),
                   IconButton(
-                    tooltip: 'Close',
+                    tooltip: S.t('common.close'),
                     icon: const Icon(Icons.close),
                     onPressed: () => Navigator.of(ctx).pop(),
                   ),
@@ -45,15 +46,16 @@ Future<void> showExamplesDialog(BuildContext context) async {
                     child: ExpansionTile(
                       leading: const Icon(Icons.play_circle_outline,
                           color: Color(0xFF00796B)),
-                      title: Text(example.title),
-                      subtitle: Text(example.summary,
+                      title: Text(S.t('lesson.${example.id}.title')),
+                      subtitle: Text(S.t('lesson.${example.id}.summary'),
                           style: const TextStyle(fontSize: 12)),
                       children: [
-                        for (final step in example.steps)
+                        for (var s = 0; s < example.steps.length; s++)
                           ListTile(
                             dense: true,
                             leading: const Icon(Icons.check, size: 16),
-                            title: Text(step,
+                            title: Text(
+                                S.t('lesson.${example.id}.s${s + 1}'),
                                 style: const TextStyle(fontSize: 12)),
                           ),
                         Padding(
@@ -62,7 +64,7 @@ Future<void> showExamplesDialog(BuildContext context) async {
                             width: double.infinity,
                             child: FilledButton.icon(
                               icon: const Icon(Icons.download),
-                              label: const Text('Load this example'),
+                              label: Text(S.t('examples.load')),
                               onPressed: () {
                                 app.loadExample(example.id);
                                 Navigator.of(ctx).pop();

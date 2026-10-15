@@ -5,6 +5,10 @@ import '../models/component_type.dart';
 import '../models/project.dart';
 
 /// A ready-made lesson: schematic + blocks + explanation.
+///
+/// The [title], [summary] and [steps] are the English reference wording; the
+/// examples dialog shows their translations, looked up as
+/// `lesson.<id>.title` / `.summary` / `.s<n>`.
 class LabExample {
   LabExample({
     required this.id,

@@ -70,7 +70,13 @@ class ComponentSpec {
   });
 
   final ComponentType type;
+
+  /// English display name: the reference wording for translators. The interface
+  /// shows the translation under the `component.<type.name>` key instead.
   final String label;
+
+  /// English grouping used by the palette, kept as a stable key; shown as
+  /// `category.<value>` in the active language.
   final String category;
   final double width;
   final double height;

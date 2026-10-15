@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../i18n/strings.dart';
 import '../../models/component_type.dart';
 import '../../state/app_state.dart';
 
@@ -61,17 +62,17 @@ class Palette extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 8),
       children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(14, 4, 14, 6),
-          child: Text('COMPONENTS',
-              style: TextStyle(fontSize: 11, letterSpacing: 0.8,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 4, 14, 6),
+          child: Text(S.t('palette.title'),
+              style: const TextStyle(fontSize: 11, letterSpacing: 0.8,
                   fontWeight: FontWeight.bold, color: Colors.blueGrey)),
         ),
         for (final entry in categories.entries) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 2),
             child: Text(
-              entry.key.toUpperCase(),
+              S.t('category.${entry.key}').toUpperCase(),
               style: TextStyle(
                 fontSize: 11,
                 letterSpacing: 0.8,
@@ -85,7 +86,7 @@ class Palette extends StatelessWidget {
               dense: true,
               leading: Icon(iconFor(type),
                   color: const Color(0xFF00796B), size: 20),
-              title: Text(ComponentSpecs.of(type).label,
+              title: Text(S.t('component.${type.name}'),
                   style: const TextStyle(fontSize: 13)),
               onTap: () {
                 final n = app.project.circuit.components.length;

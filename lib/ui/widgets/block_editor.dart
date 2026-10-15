@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../blocks/block_catalog.dart';
 import '../../blocks/block_model.dart';
+import '../../i18n/strings.dart';
 import '../../models/pin.dart';
 import '../../state/app_state.dart';
 
@@ -57,10 +58,12 @@ class BlockEditor extends StatelessWidget {
           child: Row(
             children: [
               SegmentedButton<BlockSection>(
-                segments: const [
+                segments: [
                   ButtonSegment(
-                      value: BlockSection.setup, label: Text('Setup')),
-                  ButtonSegment(value: BlockSection.loop, label: Text('Loop')),
+                      value: BlockSection.setup,
+                      label: Text(S.t('block.setup'))),
+                  ButtonSegment(
+                      value: BlockSection.loop, label: Text(S.t('block.loop'))),
                 ],
                 selected: {app.activeSection},
                 onSelectionChanged: (s) => app.setSection(s.first),
@@ -72,14 +75,13 @@ class BlockEditor extends StatelessWidget {
         const Divider(height: 1),
         Expanded(
           child: blocks.isEmpty
-              ? const Center(
+              ? Center(
                   child: Padding(
-                    padding: EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(24),
                     child: Text(
-                      'No blocks yet.\nTap "Add block" to start building '
-                      'your program.',
+                      S.t('block.empty'),
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.black54),
+                      style: const TextStyle(color: Colors.black54),
                     ),
                   ),
                 )
@@ -99,7 +101,7 @@ class BlockEditor extends StatelessWidget {
             child: FilledButton.icon(
               onPressed: () => _showAddBlockSheet(context),
               icon: const Icon(Icons.add, size: 18),
-              label: const Text('Add block'),
+              label: Text(S.t('block.addBlock')),
             ),
           ),
         ),
@@ -126,7 +128,8 @@ Future<void> _showAddBlockSheet(
             TabBar(
               isScrollable: true,
               tabs: [
-                for (final c in BlockCatalog.categories) Tab(text: c),
+                for (final c in BlockCatalog.categories)
+                  Tab(text: S.t('blockcat.$c')),
               ],
             ),
             Expanded(
@@ -142,7 +145,7 @@ Future<void> _showAddBlockSheet(
                             child: ListTile(
                               leading: Icon(Icons.add_circle,
                                   color: _categoryColor(c)),
-                              title: Text(def.label),
+                              title: Text(S.t('blk.${def.kind.name}')),
                               onTap: () {
                                 app.addBlock(def.kind,
                                     parentId: parentId, intoElse: intoElse);
@@ -195,18 +198,18 @@ class _BlockCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(def.label,
+                child: Text(S.t('blk.${def.kind.name}'),
                     style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
                         fontSize: 13)),
               ),
-              _miniIcon(Icons.arrow_upward, 'Move up',
+              _miniIcon(Icons.arrow_upward, S.t('block.moveUp'),
                   () => app.moveBlock(block.id, -1)),
-              _miniIcon(Icons.arrow_downward, 'Move down',
+              _miniIcon(Icons.arrow_downward, S.t('block.moveDown'),
                   () => app.moveBlock(block.id, 1)),
-              _miniIcon(
-                  Icons.close, 'Delete', () => app.deleteBlock(block.id)),
+              _miniIcon(Icons.close, S.t('block.delete'),
+                  () => app.deleteBlock(block.id)),
             ],
           ),
           if (def.params.isNotEmpty)
@@ -259,7 +262,7 @@ class _BodySection extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(isElse ? 'else' : 'do',
+              Text(isElse ? S.t('block.else') : S.t('block.do'),
                   style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -274,15 +277,16 @@ class _BodySection extends StatelessWidget {
                 onPressed: () => _showAddBlockSheet(context,
                     parentId: block.id, intoElse: isElse),
                 icon: const Icon(Icons.add, size: 14),
-                label: const Text('add', style: TextStyle(fontSize: 12)),
+                label: Text(S.t('block.add'),
+                    style: const TextStyle(fontSize: 12)),
               ),
             ],
           ),
           if (children.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 4),
-              child: Text('(empty)',
-                  style: TextStyle(color: Colors.white70, fontSize: 12)),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Text(S.t('block.emptyBody'),
+                  style: const TextStyle(color: Colors.white70, fontSize: 12)),
             ),
           for (final child in children) _BlockCard(block: child, depth: 0),
           if (children.isNotEmpty) const SizedBox(height: 2),
@@ -349,7 +353,7 @@ class _ParamField extends StatelessWidget {
       spacing: 4,
       children: [
         if (def.label.isNotEmpty)
-          Text(def.label,
+          Text(S.t('par.${def.label}'),
               style: const TextStyle(color: Colors.white70, fontSize: 12)),
         editor,
       ],
@@ -660,7 +664,8 @@ class _ValueEditorState extends State<ValueEditor> {
               for (final k in _kinds)
                 DropdownMenuItem(
                     value: k,
-                    child: Text(k, style: const TextStyle(fontSize: 12))),
+                    child: Text(S.t('val.$k'),
+                        style: const TextStyle(fontSize: 12))),
             ],
             onChanged: (v) {
               if (v != null) _changeKind(v);

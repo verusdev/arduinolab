@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../blocks/sketch_printer.dart';
+import '../../i18n/strings.dart';
 import '../../state/app_state.dart';
 
 /// Read-only view of the Arduino C++ sketch generated from the blocks.
@@ -22,16 +23,16 @@ class CodePreview extends StatelessWidget {
             children: [
               const Icon(Icons.code, size: 18),
               const SizedBox(width: 8),
-              Text('Generated sketch',
+              Text(S.t('sketch.title'),
                   style: Theme.of(context).textTheme.titleSmall),
               const Spacer(),
               IconButton(
-                tooltip: 'Copy',
+                tooltip: S.t('sketch.copy'),
                 icon: const Icon(Icons.copy_all, size: 18),
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: code));
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Sketch copied')),
+                    SnackBar(content: Text(S.t('sketch.copied'))),
                   );
                 },
               ),
