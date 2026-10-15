@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../engine/robotics.dart';
 import '../../models/circuit.dart';
 import '../../models/component_type.dart';
 import '../../models/geometry.dart';
@@ -317,6 +318,19 @@ class _ComponentNode extends StatelessWidget {
     // the user drag or rotate it would just fight the simulation.
     final driving =
         app.running && component.type == ComponentType.robotCar;
+    // Parts of a built-up arm turn about their own pivot, not about the middle
+    // of the box, so a bolted joint swings the way the physics says it does.
+    final mount = component.spec.mount;
+    final alignment = mount == null
+        ? Alignment.center
+        : Alignment(
+            component.width == 0 ? 0 : mount.pivotX / (component.width / 2) - 1,
+            component.height == 0 ? 0 : mount.pivotY / (component.height / 2) - 1,
+          );
+    // Only a free-standing part can be spun by hand; a bolted one is oriented
+    // by the chain it hangs off.
+    final rotatable = !driving &&
+        (mount == null || ArmAssembly.parentOf(component) == null);
 
     return Positioned(
       left: component.x,
@@ -325,6 +339,7 @@ class _ComponentNode extends StatelessWidget {
       height: component.height,
       child: Transform.rotate(
         angle: component.rotation * math.pi / 180.0,
+        alignment: alignment,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () {
@@ -335,8 +350,17 @@ class _ComponentNode extends StatelessWidget {
             }
           },
           onDoubleTap:
-              driving ? null : () => app.rotateComponent(component.id),
+              rotatable ? () => app.rotateComponent(component.id) : null,
           onLongPress: () => app.deleteComponent(component.id),
+          // Dragging an arm part pulls it off the chain first, so it (and
+          // everything bolted above it) follows the finger; letting go bolts it
+          // onto whatever socket it landed nearest.
+          onPanStart: driving || mount == null
+              ? null
+              : (_) => app.detachArmPart(component.id),
+          onPanEnd: driving || mount == null
+              ? null
+              : (_) => app.dropArmPart(component.id),
           onPanUpdate: driving
               ? null
               : (details) => app.moveComponent(component.id,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
+import 'package:arduino_lab/engine/robotics.dart';
 import 'package:arduino_lab/main.dart';
 import 'package:arduino_lab/examples/examples.dart';
 import 'package:arduino_lab/models/circuit.dart';
@@ -128,14 +129,23 @@ void main() {
     );
 
     expect(find.text('ROBOTICS'), findsOneWidget);
-    expect(find.text('Robot Car'), findsOneWidget);
+    expect(find.text('Robot Car 4WD'), findsOneWidget);
     expect(find.text('Robot Arm'), findsOneWidget);
+    expect(find.text('Arm Base'), findsOneWidget);
+    expect(find.text('Arm Link'), findsOneWidget);
+    expect(find.text('Arm Gripper'), findsOneWidget);
 
-    await tester.tap(find.text('Robot Car'));
+    await tester.tap(find.text('Robot Car 4WD'));
     await tester.pump();
 
     expect(app.project.circuit.components, hasLength(1));
     expect(app.project.circuit.components.single.type, ComponentType.robotCar);
+
+    // An arm part drops in the same way, so the kit can be built up by hand.
+    await tester.tap(find.text('Arm Link'));
+    await tester.pump();
+    expect(app.project.circuit.components, hasLength(2));
+    expect(app.project.circuit.components.last.type, ComponentType.armLink);
   });
 
   testWidgets('inspector shows robot car telemetry', (tester) async {
@@ -149,13 +159,22 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Wall sensor'), findsOneWidget);
-    expect(find.text('Left / right drive'), findsOneWidget);
-    expect(find.text('Sensor reads'), findsOneWidget);
-    expect(find.text('100 cm'), findsOneWidget);
+    expect(find.text('Wall sensors'), findsOneWidget);
+    // One line per wheel, plus both rangefinders.
+    for (final wheel in const [
+      'M1 front-left',
+      'M2 front-right',
+      'M3 rear-left',
+      'M4 rear-right',
+    ]) {
+      expect(find.text(wheel), findsOneWidget);
+    }
+    expect(find.text('Sensor ahead'), findsOneWidget);
+    expect(find.text('Sensor behind'), findsOneWidget);
+    expect(find.text('100 cm'), findsNWidgets(2));
   });
 
-  testWidgets('inspector shows every robot arm joint', (tester) async {
+  testWidgets('inspector configures each robot arm joint', (tester) async {
     final app = AppState()..addComponent(ComponentType.robotArm, 100, 100);
 
     await tester.pumpWidget(
@@ -166,11 +185,15 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Base'), findsOneWidget);
-    expect(find.text('Shoulder'), findsOneWidget);
-    expect(find.text('Elbow'), findsOneWidget);
-    expect(find.text('Gripper'), findsOneWidget);
-    expect(find.textContaining('servo write'), findsOneWidget);
+    expect(find.text('Segments'), findsOneWidget);
+    // The default four segment arm is a shoulder, an elbow, a wrist and jaws.
+    for (var j = 1; j <= 4; j++) {
+      expect(find.text(j == 4 ? 'J$j · gripper servo' : 'J$j · servo'),
+          findsOneWidget);
+    }
+    expect(find.text('J4 · gripper servo'), findsOneWidget);
+    expect(find.text('J5 · servo'), findsNothing, reason: 'only four segments');
+    expect(find.textContaining('Fit a servo'), findsOneWidget);
   });
 
   testWidgets('running the robot car lesson actually drives it', (tester) async {
@@ -219,6 +242,70 @@ void main() {
     expect(car.x, startX);
     expect(car.y, startY);
     expect(car.rotation, 0);
-    expect(car.properties['wheelPhase'], 0.0);
+    // Every wheel stops where it started, ready for another run.
+    for (var i = 1; i <= 4; i++) {
+      expect(car.properties['phase$i'], 0.0);
+    }
+  });
+
+  testWidgets('a servo can be bolted into an arm and swings it', (tester) async {
+    final app = AppState();
+    addTearDown(app.dispose);
+    app.replaceProject(Examples.byId('robot_arm_kit')!.build());
+
+    final base = app.project.circuit.componentById('base')!;
+    final link1 = app.project.circuit.componentById('link1')!;
+    // The kit arrives already assembled, standing straight up.
+    expect(link1.y, lessThan(base.y));
+    expect(link1.rotation, 0);
+
+    app.run();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 700));
+    app.stop();
+
+    expect(link1.rotation, isNot(0),
+        reason: 'the shoulder servo swings the link above it');
+  });
+
+  testWidgets('a dropped arm part bolts onto the socket it landed on',
+      (tester) async {
+    final app = AppState();
+    addTearDown(app.dispose);
+    app.replaceProject(Examples.byId('robot_arm_kit')!.build());
+    final circuit = app.project.circuit;
+    final link1 = circuit.componentById('link1')!;
+
+    // Pull the elbow off, which takes the rest of the arm with it.
+    app.detachArmPart('elbow');
+    expect(ArmAssembly.parentOf(circuit.componentById('elbow')!), isNull);
+    expect(ArmAssembly.parentOf(circuit.componentById('link2')!), 'elbow');
+
+    // Drop it straight back onto the socket on top of the first link.
+    final socket = ArmAssembly.socketWorld(link1);
+    app.moveComponent('elbow', socket.$1 - 30, socket.$2 - 30);
+    app.dropArmPart('elbow');
+
+    expect(ArmAssembly.parentOf(circuit.componentById('elbow')!), 'link1');
+    // And the whole arm is one chain again.
+    expect(ArmAssembly.pivotWorld(circuit.componentById('elbow')!), socket);
+    expect(ArmAssembly.pivotWorld(circuit.componentById('link2')!),
+        ArmAssembly.socketWorld(circuit.componentById('elbow')!));
+  });
+
+  testWidgets('deleting a part leaves the rest of the arm where it was',
+      (tester) async {
+    final app = AppState();
+    addTearDown(app.dispose);
+    app.replaceProject(Examples.byId('robot_arm_kit')!.build());
+    final circuit = app.project.circuit;
+    final link1 = circuit.componentById('link1')!;
+    final before = (link1.x, link1.y, link1.rotation);
+
+    app.deleteComponent('shoulder');
+
+    // The link is freed but does not move: it is still the arm it was.
+    expect(ArmAssembly.parentOf(link1), isNull);
+    expect((link1.x, link1.y, link1.rotation), before);
   });
 }

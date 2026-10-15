@@ -175,6 +175,9 @@ class Solver {
         case ComponentType.dht11:
         case ComponentType.robotCar:
         case ComponentType.robotArm:
+        case ComponentType.armBase:
+        case ComponentType.armLink:
+        case ComponentType.armGripper:
           break;
       }
     }
@@ -287,14 +290,20 @@ class Solver {
               ((c.properties['humidity'] as num?)?.toDouble() ?? 60)
                   .clamp(0.0, 100.0);
         case ComponentType.robotCar:
-          // The onboard HC-SR04 is optional hardware: stay quiet when its ECHO
+          // Both onboard HC-SR04s are optional hardware: stay quiet when an ECHO
           // header is not wired, and otherwise report exactly like a discrete
-          // sensor so `read distance` works unchanged.
-          final echoNet = netlist.netOf(c.id, 'ECHO');
-          final carLogic = logicOfNet[echoNet];
-          if (carLogic == null) break;
-          final carCm = (c.properties['distance'] as num?)?.toDouble() ?? 100;
-          ultrasonic[carLogic] = carCm.clamp(2.0, 400.0);
+          // sensor so `read distance` works unchanged. The front sensor is ECHO,
+          // the rear one is ECHO2.
+          final frontLogic = logicOfNet[netlist.netOf(c.id, 'ECHO')];
+          if (frontLogic != null) {
+            final cm = (c.properties['distance'] as num?)?.toDouble() ?? 100;
+            ultrasonic[frontLogic] = cm.clamp(2.0, 400.0);
+          }
+          final rearLogic = logicOfNet[netlist.netOf(c.id, 'ECHO2')];
+          if (rearLogic != null) {
+            final cm = (c.properties['distanceBehind'] as num?)?.toDouble() ?? 100;
+            ultrasonic[rearLogic] = cm.clamp(2.0, 400.0);
+          }
         case ComponentType.arduinoUno:
         case ComponentType.breadboard:
         case ComponentType.resistor:
@@ -305,6 +314,9 @@ class Solver {
         case ComponentType.buzzer:
         case ComponentType.lcd16x2:
         case ComponentType.robotArm:
+        case ComponentType.armBase:
+        case ComponentType.armLink:
+        case ComponentType.armGripper:
           break;
       }
     }

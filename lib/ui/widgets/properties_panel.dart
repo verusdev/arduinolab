@@ -216,38 +216,118 @@ class PropertiesPanel extends StatelessWidget {
     switch (component.type) {
       case ComponentType.robotCar:
         final auto = (component.properties['autoDistance'] as bool?) ?? true;
-        final d = (component.properties['distance'] as num?)?.toDouble() ?? 100;
+        final ahead = (component.properties['distance'] as num?)?.toDouble() ?? 100;
+        final behind =
+            (component.properties['distanceBehind'] as num?)?.toDouble() ?? 100;
         final commands = readRigCommands(app.engine, component);
+        const wheelNames = [
+          'M1 front-left',
+          'M2 front-right',
+          'M3 rear-left',
+          'M4 rear-right',
+        ];
         return [
           SwitchListTile(
             dense: true,
             contentPadding: EdgeInsets.zero,
-            title: const Text('Wall sensor',
+            title: const Text('Wall sensors',
                 style: TextStyle(fontSize: 13)),
-            subtitle: const Text('Reads the distance ahead automatically',
+            subtitle: const Text(
+                'The front and rear rangefinders track the walls themselves',
                 style: TextStyle(fontSize: 11)),
             value: auto,
             onChanged: (v) => setProp('autoDistance', v),
           ),
-          if (!auto)
-            _slider('Distance', '${d.round()} cm', d, 2, 400,
+          if (!auto) ...[
+            _slider('Distance ahead', '${ahead.round()} cm', ahead, 2, 400,
                 (v) => setProp('distance', v)),
+            _slider('Distance behind', '${behind.round()} cm', behind, 2, 400,
+                (v) => setProp('distanceBehind', v)),
+          ],
           const Divider(height: 20),
-          _stat('Left / right drive',
-              '${_percent(commands.left)} / ${_percent(commands.right)}'),
+          for (var i = 0; i < 4; i++)
+            _stat(wheelNames[i], _percent(commands.wheels[i])),
           _stat('Heading', '${component.rotation.round() % 360}°'),
-          _stat('Sensor reads', '${d.round()} cm'),
+          _stat('Sensor ahead', '${ahead.round()} cm'),
+          _stat('Sensor behind', '${behind.round()} cm'),
         ];
       case ComponentType.robotArm:
-        final joints = readRigCommands(app.engine, component).joints;
+        final segments = armSegmentCount(component);
+        final angles = readArmJoints(app.engine, component);
         return [
-          const Text('Drive the joints with "servo write" blocks.',
+          const Text(
+              'Fit a servo to the joints you want to drive; every other joint '
+              'holds the angle you dial in by hand.',
               style: TextStyle(fontSize: 12, color: Colors.black54)),
+          _slider('Segments', '$segments', segments.toDouble(), 2, 6,
+              (v) => setProp('segments', v.round()),
+              divisions: 4),
           const Divider(height: 20),
-          _stat('Base', '${joints[0].round()}°'),
-          _stat('Shoulder', '${joints[1].round()}°'),
-          _stat('Elbow', '${joints[2].round()}°'),
-          _stat('Gripper', '${_percent(joints[3] / 180.0)} open'),
+          for (var j = 1; j <= segments; j++) ...[
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                  j == segments ? 'J$j · gripper servo' : 'J$j · servo',
+                  style: const TextStyle(fontSize: 13)),
+              subtitle: Text(
+                  j == segments
+                      ? 'Opens and closes the jaws'
+                      : 'Drives segment $j off pin J$j',
+                  style: const TextStyle(fontSize: 11)),
+              value: armJointFitted(component, j),
+              onChanged: (v) => setProp('servoJ$j', v),
+            ),
+            if (armJointFitted(component, j))
+              _stat('J$j commanded',
+                  '${(j <= angles.length ? angles[j - 1] : 90).round()}°')
+            else
+              _slider(
+                  'J$j rest angle',
+                  '${((component.properties['restJ$j'] as num?)?.toDouble() ?? 90).round()}°',
+                  (component.properties['restJ$j'] as num?)?.toDouble() ?? 90,
+                  0,
+                  180,
+                  (v) => setProp('restJ$j', v),
+                  divisions: 36),
+          ],
+        ];
+      case ComponentType.armBase:
+      case ComponentType.armLink:
+      case ComponentType.armGripper:
+        final parent = ArmAssembly.parentOf(component);
+        final host = parent == null
+            ? null
+            : app.project.circuit.componentById(parent);
+        const roles = {
+          ComponentType.armBase:
+              'Pedestal. Bolt a servo or a link onto the socket on top.',
+          ComponentType.armLink:
+              'One segment. Its foot swings on whatever it is bolted to.',
+          ComponentType.armGripper:
+              'Jaws. Bolt a servo onto its socket to open and close them.',
+        };
+        return [
+          Text(roles[component.type]!,
+              style: const TextStyle(fontSize: 12, color: Colors.black54)),
+          const Divider(height: 20),
+          _stat('Bolted to', host?.spec.label ?? 'nothing yet'),
+          _stat('Angle', '${component.rotation.round() % 360}°'),
+          if (component.type == ComponentType.armGripper)
+            _stat(
+                'Jaws',
+                '${_percent((component.properties['openness'] as num?)?.toDouble() ?? 0)} open'),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: parent == null
+                  ? null
+                  : () => app.detachArmPart(component.id),
+              icon: const Icon(Icons.link_off, size: 16),
+              label: const Text('Unbolt'),
+            ),
+          ),
         ];
       case ComponentType.pushButton:
         return [
@@ -364,7 +444,8 @@ class PropertiesPanel extends StatelessWidget {
   static String _percent(double value) => '${(value * 100).round()}%';
 
   Widget _slider(String label, String valueText, double value, double min,
-      double max, ValueChanged<double> onChanged) {
+      double max, ValueChanged<double> onChanged,
+      {int? divisions}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -375,7 +456,12 @@ class PropertiesPanel extends StatelessWidget {
             Text(valueText, style: const TextStyle(fontSize: 12)),
           ],
         ),
-        Slider(value: value.clamp(min, max), min: min, max: max, onChanged: onChanged),
+        Slider(
+            value: value.clamp(min, max),
+            min: min,
+            max: max,
+            divisions: divisions,
+            onChanged: onChanged),
       ],
     );
   }

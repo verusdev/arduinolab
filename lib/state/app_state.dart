@@ -79,6 +79,7 @@ class AppState extends ChangeNotifier {
     engine.invalidate();
     selectedComponentId = c.id;
     selectedWireId = null;
+    _bakeArms();
     _kick();
   }
 
@@ -87,6 +88,26 @@ class AppState extends ChangeNotifier {
     if (c == null) return;
     c.x = x;
     c.y = y;
+    // Anything bolted to this part rides along with it.
+    _bakeArms();
+    _kick();
+  }
+
+  /// Takes an arm part off the chain it was bolted to, so the drag that follows
+  /// moves that part (and everything hanging off it) rather than the whole arm.
+  void detachArmPart(String id) {
+    final c = project.circuit.componentById(id);
+    if (c == null || !ArmAssembly.isPart(c)) return;
+    c.properties['parent'] = null;
+    _bakeArms();
+    _kick();
+  }
+
+  /// Bolts a dropped arm part onto the nearest free socket, or lets it go.
+  void dropArmPart(String id) {
+    final c = project.circuit.componentById(id);
+    if (c == null || !ArmAssembly.isPart(c)) return;
+    ArmAssembly.snap(project.circuit, c, jointAngle: armJointReader(engine));
     _kick();
   }
 
@@ -94,13 +115,18 @@ class AppState extends ChangeNotifier {
     final c = project.circuit.componentById(id);
     if (c == null) return;
     c.rotation = (c.rotation + 90) % 360;
+    _bakeArms();
     _kick();
   }
 
   void deleteComponent(String id) {
+    // Free whatever was bolted on, so deleting one part does not drag the rest
+    // of the arm away with it.
+    ArmAssembly.orphan(project.circuit, id);
     project.circuit.removeComponent(id);
     engine.invalidate();
     if (selectedComponentId == id) selectedComponentId = null;
+    _bakeArms();
     _kick();
   }
 
@@ -164,6 +190,8 @@ class AppState extends ChangeNotifier {
     if (c == null) return;
     c.properties[key] = value;
     engine.invalidate();
+    // Joint angles and segment counts change the shape of a built-up arm.
+    if (c.spec.isArmPart) _bakeArms();
     _kick();
   }
 
@@ -296,49 +324,62 @@ class AppState extends ChangeNotifier {
       // clock forward, so the step is capped to keep the motion watchable.
       final elapsed = ((nowUs - _lastTimeUs) / 1e6).clamp(0.0, 0.5);
       _lastTimeUs = nowUs;
-      _driveVehicles(elapsed);
+      _stepRigs(elapsed);
       notifyListeners();
     });
     setMessage(null);
     _kick();
   }
 
-  /// Advances every self-driving vehicle by one frame.
+  /// Advances every rig by one frame.
   ///
   /// Runs after [SimulationEngine.tick] so the program has already written this
-  /// frame's pin levels, and writes the sensor reading back into the component
+  /// frame's pin levels, and writes each sensor reading back into the component
   /// properties, which is where the solver looks for it.
-  void _driveVehicles(double dt) {
+  void _stepRigs(double dt) {
     for (final c in project.circuit.components) {
-      if (c.type != ComponentType.robotCar) continue;
+      if (c.type == ComponentType.robotCar) _driveCar(c, dt);
+    }
+    // Arms are posed straight from the servo angles each frame, so a servo
+    // bolted into a joint swings everything above it.
+    _bakeArms();
+  }
 
-      final commands = readRigCommands(engine, c);
-      final moved = CarPhysics.clampToField(
-        CarPhysics.step(RigPose(c.x, c.y, c.rotation), commands.left,
-            commands.right, dt),
-        c.width,
-        c.height,
-        kWorkspaceWidth,
-        kWorkspaceHeight,
+  void _driveCar(PlacedComponent c, double dt) {
+    final commands = readRigCommands(engine, c);
+    final moved = CarPhysics.clampToField(
+      CarPhysics.step(RigPose(c.x, c.y, c.rotation), commands.left,
+          commands.right, dt),
+      c.width,
+      c.height,
+      kWorkspaceWidth,
+      kWorkspaceHeight,
+    );
+    c.x = moved.x;
+    c.y = moved.y;
+    c.rotation = moved.headingDeg;
+
+    for (var i = 0; i < 4; i++) {
+      final duty = commands.wheels[i];
+      if (duty == 0) continue;
+      final key = 'phase${i + 1}';
+      c.properties[key] = CarPhysics.advancePhase(
+        (c.properties[key] as num?)?.toDouble() ?? 0,
+        duty,
+        dt,
       );
-      c.x = moved.x;
-      c.y = moved.y;
-      c.rotation = moved.headingDeg;
-
-      if (!commands.isIdle) {
-        c.properties['wheelPhase'] = CarPhysics.advanceWheelPhase(
-          (c.properties['wheelPhase'] as num?)?.toDouble() ?? 0,
-          commands.left,
-          commands.right,
-          dt,
-        );
-      }
-      if ((c.properties['autoDistance'] as bool?) ?? true) {
-        c.properties['distance'] =
-            CarPhysics.clearanceCm(moved, c, kWorkspaceWidth, kWorkspaceHeight);
-      }
+    }
+    if ((c.properties['autoDistance'] as bool?) ?? true) {
+      c.properties['distance'] =
+          CarPhysics.clearanceCm(moved, c, kWorkspaceWidth, kWorkspaceHeight);
+      c.properties['distanceBehind'] = CarPhysics.clearanceBehindCm(
+          moved, c, kWorkspaceWidth, kWorkspaceHeight);
     }
   }
+
+  /// Refreshes the pose of every part of every built-up arm.
+  void _bakeArms() => ArmAssembly.bake(project.circuit,
+      jointAngle: armJointReader(engine));
 
   void stop() {
     engine.stop();
@@ -359,10 +400,13 @@ class AppState extends ChangeNotifier {
       c.rotation = entry.value.headingDeg;
     }
     for (final c in project.circuit.components) {
-      if (c.type == ComponentType.robotCar) {
-        c.properties['wheelPhase'] = 0.0;
+      if (c.type != ComponentType.robotCar) continue;
+      for (var i = 1; i <= 4; i++) {
+        c.properties['phase$i'] = 0.0;
       }
     }
+    // Servo angles are back to neutral, so the arms stand up straight again.
+    _bakeArms();
     _kick();
   }
 
@@ -378,6 +422,9 @@ class AppState extends ChangeNotifier {
     selectedWireId = null;
     selectedBlockId = null;
     pendingWire = null;
+    // Bolted-on arms arrive as a chain of parent ids; rebuild their poses now
+    // that the circuit is live again.
+    _bakeArms();
     _kick();
   }
 

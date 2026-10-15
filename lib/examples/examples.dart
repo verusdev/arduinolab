@@ -336,16 +336,21 @@ class Examples {
     ),
     LabExample(
       id: 'robot_car',
-      title: 'Robot car: avoid the walls',
-      summary: 'Drive a car around the workspace and steer away from the border.',
+      title: 'Robot car 4WD: avoid the walls',
+      summary: 'Drive a four wheel drive car and steer it away from the border.',
       steps: [
-        'IN1-IN4 to D4-D7, EN1/EN2 to D9/D10, TRIG/ECHO to D11/D12.',
-        'The car drives towards its nose; the border of the workspace is a wall.',
-        'The onboard sensor is live: it reports the gap ahead, in cm.',
-        'Press Run and watch it turn before it reaches the edge.',
+        'Each motor has its own direction pair A/B and its own enable: '
+            'M1A/M1B/EN1 to D4/D7/D3, M2A/M2B/EN2 to D8/D12/D5, '
+            'M3A/M3B/EN3 to D10/D11/D6, M4A/M4B/EN4 to D13/D2/D9.',
+        'M1 is front-left, M2 front-right, M3 rear-left, M4 rear-right, so the '
+            'left pair is M1+M3 and the right pair M2+M4.',
+        'The nose is the front: the wall it measures is the edge of the board.',
+        'The rear rangefinder is wired to A2/A3 as well - read it with another '
+            '"read distance" block to add a reverse gear.',
+        'Press Run: it drives forward and spins on the spot before the edge.',
       ],
       build: () => _project(
-        'Robot car',
+        'Robot car 4WD',
         [
           _c('uno', ComponentType.arduinoUno, 40, 40),
           _c('car', ComponentType.robotCar, 460, 120),
@@ -353,24 +358,37 @@ class Examples {
         [
           _w('car', '5V', 'uno', '5V0'),
           _w('car', 'GND', 'uno', 'GND3'),
-          _w('car', 'IN1', 'uno', 'D4'),
-          _w('car', 'IN2', 'uno', 'D5'),
-          _w('car', 'IN3', 'uno', 'D6'),
-          _w('car', 'IN4', 'uno', 'D7'),
-          _w('car', 'EN1', 'uno', 'D9'),
-          _w('car', 'EN2', 'uno', 'D10'),
-          _w('car', 'TRIG', 'uno', 'D11'),
-          _w('car', 'ECHO', 'uno', 'D12'),
+          // Front-left.
+          _w('car', 'M1A', 'uno', 'D4'),
+          _w('car', 'M1B', 'uno', 'D7'),
+          _w('car', 'EN1', 'uno', 'D3'),
+          // Front-right.
+          _w('car', 'M2A', 'uno', 'D8'),
+          _w('car', 'M2B', 'uno', 'D12'),
+          _w('car', 'EN2', 'uno', 'D5'),
+          // Rear-left.
+          _w('car', 'M3A', 'uno', 'D10'),
+          _w('car', 'M3B', 'uno', 'D11'),
+          _w('car', 'EN3', 'uno', 'D6'),
+          // Rear-right.
+          _w('car', 'M4A', 'uno', 'D13'),
+          _w('car', 'M4B', 'uno', 'D2'),
+          _w('car', 'EN4', 'uno', 'D9'),
+          // Front and rear rangefinders.
+          _w('car', 'TRIG', 'uno', 'A0'),
+          _w('car', 'ECHO', 'uno', 'A1'),
+          _w('car', 'TRIG2', 'uno', 'A2'),
+          _w('car', 'ECHO2', 'uno', 'A3'),
         ],
         [
-          _b(BlockKind.serialBegin, {'baud': 9600.0}),
-          for (final pin in [4, 5, 6, 7, 9, 10, 11])
+          for (final pin in [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])
             _b(BlockKind.setPinMode, {'pin': pin, 'mode': 'OUTPUT'}),
-          _b(BlockKind.setPinMode, {'pin': 12, 'mode': 'INPUT'}),
+          _b(BlockKind.setPinMode, {'pin': 15, 'mode': 'INPUT'}),
+          _b(BlockKind.setPinMode, {'pin': 17, 'mode': 'INPUT'}),
         ],
         [
           _b(BlockKind.readUltrasonic,
-              {'name': 'ahead', 'trig': 11, 'echo': 12}),
+              {'name': 'ahead', 'trig': 14, 'echo': 15}),
           _b(
             BlockKind.ifElse,
             {
@@ -378,23 +396,35 @@ class Examples {
                   '<', Value.varRef('ahead'), Value.num(25)),
             },
             [
-              // Spin on the spot: left wheel back, right wheel forward.
+              // Spin on the spot: the left pair backs up, the right pair drives.
               _b(BlockKind.digitalWrite, {'pin': 4, 'value': 'LOW'}),
-              _b(BlockKind.digitalWrite, {'pin': 5, 'value': 'HIGH'}),
-              _b(BlockKind.digitalWrite, {'pin': 6, 'value': 'HIGH'}),
-              _b(BlockKind.digitalWrite, {'pin': 7, 'value': 'LOW'}),
+              _b(BlockKind.digitalWrite, {'pin': 7, 'value': 'HIGH'}),
+              _b(BlockKind.digitalWrite, {'pin': 10, 'value': 'LOW'}),
+              _b(BlockKind.digitalWrite, {'pin': 11, 'value': 'HIGH'}),
+              _b(BlockKind.digitalWrite, {'pin': 8, 'value': 'HIGH'}),
+              _b(BlockKind.digitalWrite, {'pin': 12, 'value': 'LOW'}),
+              _b(BlockKind.digitalWrite, {'pin': 13, 'value': 'HIGH'}),
+              _b(BlockKind.digitalWrite, {'pin': 2, 'value': 'LOW'}),
+              _b(BlockKind.analogWrite, {'pin': 3, 'value': 130.0}),
+              _b(BlockKind.analogWrite, {'pin': 5, 'value': 130.0}),
+              _b(BlockKind.analogWrite, {'pin': 6, 'value': 130.0}),
               _b(BlockKind.analogWrite, {'pin': 9, 'value': 130.0}),
-              _b(BlockKind.analogWrite, {'pin': 10, 'value': 130.0}),
               _b(BlockKind.wait, {'ms': 220.0}),
             ],
             [
-              // Clear road: both wheels forward.
+              // Clear road: all four wheels forward.
               _b(BlockKind.digitalWrite, {'pin': 4, 'value': 'HIGH'}),
-              _b(BlockKind.digitalWrite, {'pin': 5, 'value': 'LOW'}),
-              _b(BlockKind.digitalWrite, {'pin': 6, 'value': 'HIGH'}),
               _b(BlockKind.digitalWrite, {'pin': 7, 'value': 'LOW'}),
+              _b(BlockKind.digitalWrite, {'pin': 10, 'value': 'HIGH'}),
+              _b(BlockKind.digitalWrite, {'pin': 11, 'value': 'LOW'}),
+              _b(BlockKind.digitalWrite, {'pin': 8, 'value': 'HIGH'}),
+              _b(BlockKind.digitalWrite, {'pin': 12, 'value': 'LOW'}),
+              _b(BlockKind.digitalWrite, {'pin': 13, 'value': 'HIGH'}),
+              _b(BlockKind.digitalWrite, {'pin': 2, 'value': 'LOW'}),
+              _b(BlockKind.analogWrite, {'pin': 3, 'value': 170.0}),
+              _b(BlockKind.analogWrite, {'pin': 5, 'value': 170.0}),
+              _b(BlockKind.analogWrite, {'pin': 6, 'value': 170.0}),
               _b(BlockKind.analogWrite, {'pin': 9, 'value': 170.0}),
-              _b(BlockKind.analogWrite, {'pin': 10, 'value': 170.0}),
             ],
           ),
         ],
@@ -403,11 +433,14 @@ class Examples {
     LabExample(
       id: 'robot_arm',
       title: 'Robot arm: pick and place',
-      summary: 'Swing a four joint arm through a pick and place cycle.',
+      summary: 'Swing a segmented arm through a pick and place cycle.',
       steps: [
-        'BASE/SHLD/ELBW/GRIP to D3/D5/D6/D9, plus 5V and GND.',
-        'Every joint is a servo, so "servo write" moves it.',
-        'Open the Inspector to read the angle of each joint live.',
+        'J1-J4 to D3/D5/D6/D9, plus 5V and GND. Each joint is one servo.',
+        'Set how many segments the arm has in the Inspector, and fit a servo to '
+            'the joints you want the program to drive.',
+        'The last joint works the jaws, so J4 opens and closes the gripper.',
+        'A joint with no servo just holds the angle you dial in by hand, so you '
+            'can pose the arm and animate one joint at a time.',
         'Press Run to replay the pick and place cycle.',
       ],
       build: () => _project(
@@ -419,10 +452,10 @@ class Examples {
         [
           _w('arm', '5V', 'uno', '5V0'),
           _w('arm', 'GND', 'uno', 'GND3'),
-          _w('arm', 'BASE', 'uno', 'D3'),
-          _w('arm', 'SHLD', 'uno', 'D5'),
-          _w('arm', 'ELBW', 'uno', 'D6'),
-          _w('arm', 'GRIP', 'uno', 'D9'),
+          _w('arm', 'J1', 'uno', 'D3'),
+          _w('arm', 'J2', 'uno', 'D5'),
+          _w('arm', 'J3', 'uno', 'D6'),
+          _w('arm', 'J4', 'uno', 'D9'),
         ],
         const [],
         [
@@ -438,6 +471,64 @@ class Examples {
           _b(BlockKind.servoWrite, {'pin': 3, 'angle': 135.0}),
           _b(BlockKind.wait, {'ms': 800.0}),
           _b(BlockKind.servoWrite, {'pin': 9, 'angle': 20.0}),
+          _b(BlockKind.wait, {'ms': 600.0}),
+        ],
+      ),
+    ),
+    LabExample(
+      id: 'robot_arm_kit',
+      title: 'Robot arm: build it out of parts',
+      summary: 'Bolt a pedestal, two links and a gripper together, '
+          'with a servo at the joint that has to move.',
+      steps: [
+        'Drag an Arm Base, an Arm Link, an Arm Gripper and Servo Motors onto '
+            'the board. Every part has a gold socket where the next one goes.',
+        'Drag a part so its foot lands on a socket and let go: it snaps on and '
+            'stays put. Drag it again to pull it off.',
+        'A servo bolted into a joint swings everything above it by the angle '
+            'you write to its signal pin - that is what makes it an arm.',
+        'A servo bolted onto the gripper\'s socket works the jaws: 0 shuts '
+            'them, 180 opens them wide.',
+        'Wiring: the shoulder servo is on D3, the elbow on D5, the jaws on D6.',
+        'Press Run to sweep the arm and work the gripper.',
+      ],
+      build: () => _project(
+        'Arm kit',
+        [
+          _c('uno', ComponentType.arduinoUno, 40, 40),
+          _c('base', ComponentType.armBase, 560, 400),
+          _c('shoulder', ComponentType.servo, 560, 400,
+              props: {'parent': 'base'}),
+          _c('link1', ComponentType.armLink, 560, 400,
+              props: {'parent': 'shoulder'}),
+          _c('elbow', ComponentType.servo, 560, 400,
+              props: {'parent': 'link1'}),
+          _c('link2', ComponentType.armLink, 560, 400,
+              props: {'parent': 'elbow'}),
+          _c('grip', ComponentType.armGripper, 560, 400,
+              props: {'parent': 'link2', 'openness': 0.0}),
+          _c('jaws', ComponentType.servo, 560, 400, props: {'parent': 'grip'}),
+        ],
+        [
+          _w('shoulder', 'SIG', 'uno', 'D3'),
+          _w('elbow', 'SIG', 'uno', 'D5'),
+          _w('jaws', 'SIG', 'uno', 'D6'),
+          _w('shoulder', 'VCC', 'uno', '5V0'),
+          _w('shoulder', 'GND', 'uno', 'GND3'),
+          _w('elbow', 'VCC', 'uno', '5V0'),
+          _w('elbow', 'GND', 'uno', 'GND3'),
+          _w('jaws', 'VCC', 'uno', '5V0'),
+          _w('jaws', 'GND', 'uno', 'GND3'),
+        ],
+        const [],
+        [
+          _b(BlockKind.servoWrite, {'pin': 3, 'angle': 120.0}),
+          _b(BlockKind.wait, {'ms': 600.0}),
+          _b(BlockKind.servoWrite, {'pin': 5, 'angle': 60.0}),
+          _b(BlockKind.wait, {'ms': 600.0}),
+          _b(BlockKind.servoWrite, {'pin': 6, 'angle': 160.0}),
+          _b(BlockKind.wait, {'ms': 600.0}),
+          _b(BlockKind.servoWrite, {'pin': 6, 'angle': 20.0}),
           _b(BlockKind.wait, {'ms': 600.0}),
         ],
       ),

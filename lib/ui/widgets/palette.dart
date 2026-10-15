@@ -40,6 +40,12 @@ class Palette extends StatelessWidget {
         return Icons.directions_car;
       case ComponentType.robotArm:
         return Icons.precision_manufacturing;
+      case ComponentType.armBase:
+        return Icons.anchor;
+      case ComponentType.armLink:
+        return Icons.straighten;
+      case ComponentType.armGripper:
+        return Icons.back_hand;
     }
   }
 
